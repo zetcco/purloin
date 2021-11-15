@@ -18,7 +18,7 @@
     <ClCompile Include="Source.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\ChromeDump\ChromeDump\sqlite3.c">
+    <ClCompile Include="sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
