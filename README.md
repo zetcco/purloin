@@ -5,7 +5,9 @@ win32 API based password stealer.
 
 
  - [Dependencies](#dependencies)
- - [How it works](#howitworks)
+ - [How it works](#how-it-works)
+ - [How to use](#how-to-use)
+ - [Additional Reads](#additional-reads)
 
  
 
@@ -19,6 +21,10 @@ vcpkg install sqlite3
 vcpkg integrate install
 ```
 ## How it works
+First, the program will attempt to make connection to the server (see the macro ```SERVER_IP``` on the port ```DEFAULT_PORT```)
+
+Then it will allocate neccessary memory for the buffers. After that the program will look for the 
+Chrome installation directory. (Currently, if not found. The program will exit.). After finding the directory it will iterate over the chrome profiles that is in that directory (Default, Profile 1, Profile 2, ....) decrypting all the passwords and sending them realtime.
 
 Chrome passwords are stored in,
 
@@ -74,7 +80,7 @@ struct WebPassword
 ```
 
 #### Decryption
-Currently, only the passwords with ```v10``` are decrypted.
+***Currently, only the passwords that are encrypted with ```v10``` (version 10) will be decrypted.***
 
 Using the win32's ``` BCryptDecrypt() ``` function,
 
@@ -100,5 +106,21 @@ Hence Chrome password recovery has to be performed on the same computer as the s
 #### Decryption
 
 Chrome version (v79.0 or earlier) used Windows DPAPI function, CryptProtectData to encrypt the website password. We can decrypt this password using the function called CryptUnprotectData.
-But assuming many of the chrome installations are up-to-date. Decrption of this version's passwords are not included in the program.
+But assuming many of the chrome installations are up-to-date. ***Decrption of this version's passwords are not included in the program.***
 
+
+## How to use
+
+Currently, no server-side software has been developed specifically for this. But can be easily used with
+netcat.
+
+Below will output incoming (to [port]) passwords to the screen as well as save them to a log file pointed by the [location]
+```bash
+nc -l [port] -v >& tee [location]
+```
+## Additional Reads
+
+- [Win32 API](#https://docs.microsoft.com/en-us/windows/win32/api/)
+- [Chrome Encryption](#https://xenarmor.com/how-to-recover-saved-passwords-google-chrome/)
+- [DPAPI API](#https://www.passcape.com/index.php?section=docsys&cmd=details&id=28)
+- [Python Equvalvent](#https://gist.github.com/GramThanos/ff2c42bb961b68e7cc197d6685e06f10)
