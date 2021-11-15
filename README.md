@@ -120,7 +120,7 @@ nc -l [port] -v >& tee [location]
 ```
 ## Additional Reads
 
-- [Win32 API](#https://docs.microsoft.com/en-us/windows/win32/api/)
-- [Chrome Encryption](#https://xenarmor.com/how-to-recover-saved-passwords-google-chrome/)
-- [DPAPI API](#https://www.passcape.com/index.php?section=docsys&cmd=details&id=28)
-- [Python Equvalvent](#https://gist.github.com/GramThanos/ff2c42bb961b68e7cc197d6685e06f10)
+- [Win32 API](https://docs.microsoft.com/en-us/windows/win32/api/)
+- [Chrome Encryption](https://xenarmor.com/how-to-recover-saved-passwords-google-chrome/)
+- [DPAPI API](https://www.passcape.com/index.php?section=docsys&cmd=details&id=28)
+- [Python Equvalvent](https://gist.github.com/GramThanos/ff2c42bb961b68e7cc197d6685e06f10)
