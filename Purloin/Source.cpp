@@ -21,7 +21,7 @@
 #define TAG_LEN 16
 #define CIPHER_LEN 300
 #define DEFAULT_BUFLEN 512
-#define SERVER_IP "192.168.8.104"
+#define SERVER_IP "192.168.8.101"
 #define DEFAULT_PORT "25565"
 
 #ifndef NT_SUCCESS
@@ -637,7 +637,7 @@ void sendData(char* data) {
 	// Send an initial buffer
 	int iResult;
 	iResult = send(ConnectSocket, data, (int)strlen(data), 0);
-	iResult = send(ConnectSocket, "\n", 1, 0);
+	//iResult = send(ConnectSocket, "\n", 1, 0);
 	if (iResult == SOCKET_ERROR) {
 		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "send failed with error: %d\n", WSAGetLastError());
 		closesocket(ConnectSocket);
