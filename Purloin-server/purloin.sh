@@ -1,13 +1,13 @@
 #!/bin/bash
 
-red="\033[1;31m"
-green="\033[1;32m"
-yellow="\033[1;33m"
-blue="\033[1;34m"
-purple="\033[1;35m"
-cyan="\033[1;36m"
-grey="\033[0;37m"
-reset="\033[m"
+purloin_red="\033[1;31m"
+purloin_green="\033[1;32m"
+purloin_yellow="\033[1;33m"
+purloin_blue="\033[1;34m"
+purloin_purple="\033[1;35m"
+purloin_cyan="\033[1;36m"
+purloin_grey="\033[0;37m"
+purloin_reset="\033[m"
 
 cd ~/storage/shared/purloin
 continuos=
@@ -18,16 +18,16 @@ test=false
 
 out() {
 	if [[ $1 = "info" ]]; then
-		echo -e "${green}[*] $2${reset}"
+		echo -e "${purloin_green}[*] $2${purloin_reset}"
 	elif [[ $1 = "warn" ]]; then
-		echo -e "${yellow}[!] $2${reset}"
+		echo -e "${purloin_yellow}[!] $2${purloin_reset}"
 	elif [[ $1 = "error" ]]; then
-		echo -e "${red}[x] $2${reset}"
+		echo -e "${purloin_red}[x] $2${purloin_reset}"
 	fi
 }
 
 usage() { 
-	echo -e -n "${red}"
+	echo -e -n "${purloin_red}"
 	echo "Usage: $0 [-o Operation name] [-s Silent Mode] [-c Continuos mode] [-q Quick run] [-t Test run]" 1>&2
 	echo -e "\tExample : Run with display output, with operation name as \"Operation_Name\"" 1>&2
 	echo -e "\t\t $0 -o Operation_Name" 1>&2
@@ -35,7 +35,7 @@ usage() {
 	echo -e "\t\t $0 -qcs" 1>&2
 	echo -e "\tExample : Test run. Do not write to file." 1>&2
 	echo -e "\t\t $0 -ct" 1>&2
-	echo -e -n "${reset}"
+	echo -e -n "${purloin_reset}"
 	exit 1
 }
 
@@ -43,12 +43,13 @@ create_op() {
 	# If operation name is not specified
 	if [ -d "./$1" ]; then
 		if [[ $1 = "quick" ]]; then
-			echo -e "${yellow}[*] Running in quick operation mode.${reset}"
+			# echo -e "${yellow}[*] Running in quick operation mode.${reset}"
+			out "warn" "Running in quick operation mode."
 		else
-	    	echo -e "${green}[*] Operation directory exists. Using existing.${reset}"
+	    	out "info" "Operation directory exists. Using existing."
 	    fi
 	else
-	    echo -e "${green}[*] New Operation initiated.${reset}"
+	    out "info" "New Operation initiated."
 	    mkdir ./$1
 	fi
 	operation=$1
