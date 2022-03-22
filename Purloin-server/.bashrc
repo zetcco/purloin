@@ -1,0 +1,1 @@
+alias purloin="bash ~/bin/purloin"

