@@ -10,11 +10,11 @@ purloin_grey="\033[0;37m"
 purloin_reset="\033[m"
 
 cd ~/storage/shared/purloin
-continuos=
-write=
 operation=
-silent=false
-test=false
+mode_silent=false
+mode_test=false
+mode_continuos=
+mode_write=
 
 out() {
 	if [[ $1 = "info" ]]; then
@@ -59,18 +59,18 @@ while getopts tcqsho: name
 do
 	case $name in
 		s)	# silent_mode
-			silent=true;;
+			mode_silent=true;;
 		o)	# operaion creation
 			create_op ${OPTARG};;
 		c)	# continuos mode
-			continuos="-k"
+			mode_continuos="-k"
 			out "warn" "Running in continuos mode";;
 		h)	# help
 			usage;;
 		q)	# quick run
 			create_op "quick";;
 		t)	# test mode (no write)
-			test=true;;
+			mode_test=true;;
 		?)	
 			usage
 			exit 2;;
@@ -79,22 +79,25 @@ done
 shift $(($OPTIND - 1))
 
 if [[ ! $OPTIND = 1 ]]; then
-	if [[ $test = true ]]; then
+	if [[ $mode_test = true ]]; then
 		out "warn" "Running in test mode. Writing to a file disabled."
-		write=""
+		mode_write=""
 	elif [[ ! -z $operation ]]; then
-		write="|& tee ./$operation/$(echo $operation)_$(date +%F_%I-%M-%p).purloin"
+		mode_write="|& tee ./$operation/$(echo $operation)_$(date +%F_%I-%M-%p).purloin"
 
-		if [[ $silent = true ]]; then
+		if [[ $mode_silent = true ]]; then
 			out "warn" "Running in silent mode."
-			write="&> ./$operation/$(echo $operation)_$(date +%F_%I-%M-%p).purloin"
+			mode_write="&> ./$operation/$(echo $operation)_$(date +%F_%I-%M-%p).purloin"
 		fi
 	else
 		usage
 	fi
 
-	# echo "ncat -l 25565 -v ${continuos} ${write}"
-	eval ncat -l 25565 -v ${continuos} ${write}
+	# Set the IP of the domain "purloin.sytes.net" using No-Ip HTTP request
+	server_ip=$(curl ifconfig.me) # Get the current public ip
+	update_url="http://dynupdate.no-ip.com/nic/update?hostname=purloin.sytes.net&myip=${server_ip}"
+	eval curl -u kranietisme@gmail.com:mrrobot@bin ${update_url} # Set the server ip
+	eval ncat -l 25565 -v ${mode_continuos} ${mode_write} ${background_run}
 else
 	usage
 fi
