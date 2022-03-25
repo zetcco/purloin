@@ -38,7 +38,7 @@ BOOL get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR 
 
 	/* Get Local Appdata Directory of the user */
 	if (FAILED(hr = SHGetKnownFolderPath(folder_id, 0, NULL, &p_temp_userdata_location))) {
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_user_dir: SHGetKnownFolderPath: Getting Local Appdata Directory error code: %l\n", hr);)
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_user_dir: SHGetKnownFolderPath: Getting Local Appdata Directory error code: %ld\n", hr);)
 		CoTaskMemFree(p_temp_userdata_location);
 		return FALSE;
 	}

