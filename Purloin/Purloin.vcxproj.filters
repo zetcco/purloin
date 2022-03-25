@@ -13,6 +13,12 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Purloin">
+      <UniqueIdentifier>{0058abe7-2115-4b31-9b24-6a4648ef7a43}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Purloin\includes">
+      <UniqueIdentifier>{813f227d-3cb7-42e0-b178-3aaef7b759eb}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Source.cpp">
@@ -21,31 +27,31 @@
     <ClCompile Include="sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Purloin_Utils.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Purloin\Purloin_Chrome.cpp">
+      <Filter>Purloin</Filter>
     </ClCompile>
-    <ClCompile Include="Purloin_Server.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Purloin\Purloin_Server.cpp">
+      <Filter>Purloin</Filter>
     </ClCompile>
-    <ClCompile Include="Purloin_Chrome.cpp">
-      <Filter>Source Files</Filter>
+    <ClCompile Include="Purloin\Purloin_Utils.cpp">
+      <Filter>Purloin</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Purloin_Debug.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Purloin\includes\Purloin_Chrome.h">
+      <Filter>Purloin\includes</Filter>
     </ClInclude>
-    <ClInclude Include="Purloin_Server.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Purloin\includes\Purloin_Debug.h">
+      <Filter>Purloin\includes</Filter>
     </ClInclude>
-    <ClInclude Include="Purloin_Chrome.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Purloin\includes\Purloin_Server.h">
+      <Filter>Purloin\includes</Filter>
     </ClInclude>
-    <ClInclude Include="Purloin_Utils.h">
-      <Filter>Header Files</Filter>
+    <ClInclude Include="Purloin\includes\Purloin_Utils.h">
+      <Filter>Purloin\includes</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

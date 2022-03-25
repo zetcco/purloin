@@ -146,9 +146,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Purloin_Utils.cpp" />
-    <ClCompile Include="Purloin_Chrome.cpp" />
-    <ClCompile Include="Purloin_Server.cpp" />
+    <ClCompile Include="Purloin\Purloin_Chrome.cpp" />
+    <ClCompile Include="Purloin\Purloin_Server.cpp" />
+    <ClCompile Include="Purloin\Purloin_Utils.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="sqlite3.c" />
   </ItemGroup>
@@ -156,10 +156,10 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Purloin_Chrome.h" />
-    <ClInclude Include="Purloin_Debug.h" />
-    <ClInclude Include="Purloin_Server.h" />
-    <ClInclude Include="Purloin_Utils.h" />
+    <ClInclude Include="Purloin\includes\Purloin_Chrome.h" />
+    <ClInclude Include="Purloin\includes\Purloin_Debug.h" />
+    <ClInclude Include="Purloin\includes\Purloin_Server.h" />
+    <ClInclude Include="Purloin\includes\Purloin_Utils.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

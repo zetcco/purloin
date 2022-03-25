@@ -1,5 +1,5 @@
-#include "Purloin/Purloin_Utils.h"
-#include "Purloin/Purloin_Debug.h"
+#include "includes/Purloin_Utils.h"
+#include "includes/Purloin_Debug.h"
 
 // Converts CHAR in Base64 to Bytes.  User must free the byte data after usage.
 BOOL base64_to_byte(PCHAR base64_string, BYTE** byte_string, PDWORD size_byte_string) {

