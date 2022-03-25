@@ -21,10 +21,13 @@
     <ClCompile Include="sqlite3.c">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="Purloin_Browser.cpp">
+    <ClCompile Include="Purloin_Utils.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Purloin_Server.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Purloin_Chrome.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -38,7 +41,10 @@
     <ClInclude Include="Purloin_Server.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="Purloin_Browser.h">
+    <ClInclude Include="Purloin_Chrome.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="Purloin_Utils.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

