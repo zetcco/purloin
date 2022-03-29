@@ -64,7 +64,7 @@ BOOL connect(SOCKET* ConnectSocket, PCSTR server_ip, PCSTR server_port) {
 	return TRUE;
 }
 
-void send(char* data, SOCKET ConnectSocket) {
+void send_data(char* data, SOCKET ConnectSocket) {
 	// Send an initial buffer
 	int iResult;
 	iResult = send(ConnectSocket, data, (int)strlen(data), 0);
@@ -99,5 +99,5 @@ void send_machineName(SOCKET ConnectSocket) {
 	if (GetComputerNameA(machine_name, &len_machine_name) == 0)
 		sprintf_s(machine_name, len_machine_name, "<error-getting-hostname>");
 	sprintf_s(buf_outMsg, DEFAULT_BUFLEN * sizeof(CHAR), "-------- GOT CONNECTION FROM (%s) --------\n", machine_name);
-	send(buf_outMsg, ConnectSocket);
+	send_data(buf_outMsg, ConnectSocket);
 }

