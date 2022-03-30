@@ -4,6 +4,8 @@
 #include <wchar.h>
 #include <shlwapi.h>
 #include <sqlite3.h>
+#include <dpapi.h>
+#include <bcrypt.h>
 
 #define BYTE_RESULT 100
 #define TEXT_RESULT 101
@@ -24,3 +26,4 @@ BOOL prepare_sql(void* handle_db, void** handle_sql_stmt, const char* sql_stmt, 
 BOOL iterate_result(void* handle_sql_stmt);
 void* get_result(void* handle_sql_stmt, int index, int type);
 int get_result_size(void* handle_sql_stmt, int index);
+BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, WORD buf_outSize);

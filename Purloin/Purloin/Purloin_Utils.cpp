@@ -198,3 +198,16 @@ void* get_result(void* handle_sql_stmt, int index, int type) {
 int get_result_size(void* handle_sql_stmt, int index) {
 	return sqlite3_column_bytes((sqlite3_stmt*)handle_sql_stmt, index);
 }
+
+BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
+	/* Reset SQL statement */
+	NTSTATUS status;
+	if ((status = sqlite3_reset((sqlite3_stmt*)handle_sql_stmt)) != 0) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_reset: %s:%d\n", sqlite3_errmsg((sqlite3*)handle_db), status);)
+		return FALSE;
+	}
+
+	/* Close the opened database */
+	sqlite3_close((sqlite3*)handle_db);
+	return TRUE;
+}
