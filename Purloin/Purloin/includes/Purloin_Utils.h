@@ -6,6 +6,7 @@
 #include <sqlite3.h>
 #include <dpapi.h>
 #include <bcrypt.h>
+#include <ntstatus.h>
 
 #define BYTE_RESULT 100
 #define TEXT_RESULT 101
