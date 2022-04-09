@@ -1,5 +1,5 @@
 #define DEBUG 1
-#define DUMP_SEND 0
+#define DUMP_SEND 1
 
 #if DEBUG
 #	define Debug(x) x
