@@ -68,7 +68,6 @@ BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PW
 					continue;
 				}
 				if (propertyFound) {
-					enc_master_key[i] = (WCHAR)L'\0';
 					if ((err = fclose(fp_file)) != 0) {
 						Debug(sprintf_s(buf_outMsg, buf_outSize * sizeof(CHAR), "get_json_property: fclose: '%ws' closing error code: %d\n", data_file, err);)
 					}
@@ -81,7 +80,7 @@ BOOL get_json_property(PCWSTR browser_dir, PCWSTR data_file, PCWSTR property, PW
 		}
 		else if (quoteFound) {
 			enc_master_key[i] = read_buffer[0];
-			i++;
+			i = (i + 1) % (enc_master_key_size - 1);
 		}
 	}
 

