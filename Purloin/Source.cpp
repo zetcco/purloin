@@ -1,6 +1,6 @@
 #include "Purloin/includes/Purloin_Debug.h"
 #include "Purloin/includes/Purloin_Server.h"
-#include "Purloin/includes/Purloin_Chrome.h"
+#include "Purloin/includes/Purloin_Chromium.h"
 
 #include <windows.h>
 #include <tchar.h>
