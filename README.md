@@ -1,6 +1,8 @@
 
 # Purloin
 
+## FOR EDUCATIONAL PURPOSES ONLY
+
 win32 API based password stealer.
 
 
